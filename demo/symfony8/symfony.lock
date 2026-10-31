@@ -31,6 +31,12 @@
     "nowo-tech/instance-settings-bundle": {
         "version": "dev-feat/1.0.0"
     },
+    "nowo-tech/outbound-url-guard-bundle": {
+        "version": "v1.3.0"
+    },
+    "nowo-tech/sms-kit-bundle": {
+        "version": "dev-feat/1.0.0"
+    },
     "nowo-tech/twig-inspector-bundle": {
         "version": "v1.3.2"
     },

@@ -42,7 +42,7 @@ test.describe('SMS kit demo', () => {
 
   test('a stored token is never rendered back', async ({ page }) => {
     await page.goto('/admin/settings/sections/sms');
-    await sectionForm(page).getByLabel('Twilio Auth Token').fill('REDACTED-DEMO-TOKEN');
+    await sectionForm(page).getByRole('group', { name: 'Twilio Auth Token' }).getByLabel('New value').fill('REDACTED-DEMO-TOKEN');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Settings saved.')).toBeVisible();
     expect(await page.content()).not.toContain('REDACTED-DEMO-TOKEN');

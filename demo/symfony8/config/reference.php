@@ -471,7 +471,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     disallow_search_engine_index?: bool|Param, // Enabled by default when debug is enabled. // Default: true
  *     http_client?: bool|array{ // HTTP Client configuration
- *         enabled?: bool|Param, // Default: false
+ *         enabled?: bool|Param, // Default: true
  *         max_host_connections?: int|Param, // The maximum number of connections to a single host.
  *         default_options?: array{
  *             headers?: array<string, mixed>,
@@ -629,7 +629,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         }>,
  *     },
  *     rate_limiter?: bool|array{ // Rate limiter configuration
- *         enabled?: bool|Param, // Default: false
+ *         enabled?: bool|Param, // Default: true
  *         limiters?: array<string, array{ // Default: []
  *             lock_factory?: scalar|Param|null, // The service ID of the lock factory used by this limiter (or null to disable locking). // Default: "auto"
  *             cache_pool?: scalar|Param|null, // The cache pool to use for storing the current limiter state. // Default: "cache.rate_limiter"
@@ -1593,6 +1593,59 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         sealed_secrets?: bool|Param, // Allow exporting / importing secrets sealed with the instance DoctrineEncrypt key. false = secrets never leave the instance. // Default: true
  *     },
  * }
+ * @psalm-type NowoOutboundUrlGuardConfig = array{
+ *     allow_private?: bool|Param, // When true, loopback, RFC1918, and blocked hostnames are allowed. Cloud metadata stays blocked. // Default: false
+ *     allow_private_resolver?: scalar|Param|null, // Service id of an AllowPrivateResolverInterface read on every OutboundUrlGuardFactory / RuntimeOutboundUrlGuard call. Null uses the static allow_private value. Cloud metadata stays blocked whatever it returns. // Default: null
+ *     resolve_dns?: bool|Param, // When true, hostnames are resolved and the first public address is returned as an HttpClient resolve pin. Set false for Docker service names. // Default: true
+ *     dns_timeout?: float|Param, // Socket timeout in seconds for DNS lookups. Must stay below the host PHP max_execution_time. // Default: 2.0
+ *     php_binary?: scalar|Param|null, // PHP CLI used for the bounded DNS child process. Null auto-detects it (PHP_BINARY is not the CLI under php-fpm or FrankenPHP). An empty string, or no CLI found, resolves in-process without the dns_timeout bound. // Default: null
+ * }
+ * @psalm-type NowoSmsKitConfig = array{ // Nowo SMS Kit — provider registry, runtime configuration in the "sms" instance settings section, test command and action, AuthKit adapter.
+ *     default_provider?: scalar|Param|null, // Provider used while "sms.provider" is not stored: null (disabled), log, twilio, sms_bridge or a host provider name (empty = null). // Default: "null"
+ *     sender?: scalar|Param|null, // Sender used while "sms.sender" is not stored: an E.164 number or an alphanumeric sender id (e.g. %env(default::SMS_SENDER)%). // Default: null
+ *     http?: array{ // Provider HTTP calls (REQ-RUNTIME-001): timeouts and outbound URL policy (nowo-tech/outbound-url-guard-bundle).
+ *         timeout?: float|Param, // Idle timeout in seconds of a provider request. // Default: 5.0
+ *         max_duration?: float|Param, // Total duration cap in seconds of a provider request (connect included). Keep it below PHP max_execution_time. // Default: 15.0
+ *         allow_private_endpoints?: bool|Param, // Allow loopback / private-network endpoints (self-hosted SMS Bridge on the LAN or a Docker network). Cloud metadata addresses stay blocked. // Default: false
+ *         resolve_dns?: bool|Param, // Resolve the endpoint host and pin the checked address (DNS rebinding protection). Disable only for Docker service names. // Default: true
+ *         require_https?: bool|Param, // Refuse plain http:// provider endpoints (credentials travel in every request). // Default: true
+ *     },
+ *     providers?: array{ // Bundled providers. Credentials here are fallbacks used while the "sms" section stores nothing (prefer %env(...)% placeholders).
+ *         log?: array{
+ *             enabled?: bool|Param, // Register the "log" provider (writes masked metadata to the logger, sends nothing). // Default: true
+ *         },
+ *         twilio?: array{
+ *             enabled?: bool|Param, // Register the "twilio" provider. // Default: true
+ *             api_base_url?: scalar|Param|null, // Twilio API base URL. // Default: "https://api.twilio.com"
+ *             account_sid?: scalar|Param|null, // Fallback Account SID (AC…). // Default: null
+ *             auth_token?: scalar|Param|null, // Fallback Auth Token (use an %env()% placeholder, never a literal). // Default: null
+ *             messaging_service_sid?: scalar|Param|null, // Fallback Messaging Service SID (MG…). // Default: null
+ *         },
+ *         sms_bridge?: array{
+ *             enabled?: bool|Param, // Register the "sms_bridge" provider. // Default: true
+ *             base_url?: scalar|Param|null, // Fallback SMS Bridge base URL. // Default: null
+ *             api_mode?: "twilio"|"native"|Param, // Fallback API surface: twilio (Twilio-compatible Messages API) or native (/api/v1/sms with a Bearer client key). // Default: "twilio"
+ *             account_sid?: scalar|Param|null, // Fallback Account SID (AC…, Twilio-compatible mode). // Default: null
+ *             auth_token?: scalar|Param|null, // Fallback client key (smscli_…; use an %env()% placeholder). // Default: null
+ *             device_id?: scalar|Param|null, // Fallback device id (null = the bridge picks a device). // Default: null
+ *         },
+ *     },
+ *     test_action?: array{ // "Send a test SMS" button of the "sms" settings section (POST + CSRF, instance settings access checker, rate limit).
+ *         enabled?: bool|Param, // Default: true
+ *         path?: scalar|Param|null, // Path of the POST route (import the "nowo_sms_kit" route loader). Keep it under the instance settings admin prefix so the firewall rule covers it. // Default: "/admin/settings/sms/test"
+ *         rate_limit?: array{
+ *             limit?: int|Param, // Test sends allowed per user and interval. // Default: 5
+ *             interval?: scalar|Param|null, // Window of the limit (sliding window), e.g. "15 minutes". // Default: "15 minutes"
+ *         },
+ *     },
+ *     auth_kit?: array{ // AuthKit adapter (nowo-tech/auth-kit-bundle).
+ *         password_reset?: array{
+ *             enabled?: bool|Param, // Decorate AuthKit's PasswordResetNotifierInterface: the reset code also goes by SMS to the account phone (delivery modes code / both). // Default: false
+ *             phone_property?: scalar|Param|null, // User property holding the E.164 phone (read through get<Property>(), <property>() or the public property). // Default: "phone"
+ *             phone_resolver?: scalar|Param|null, // Service id of a PhoneNumberResolverInterface replacing the property resolver. // Default: null
+ *         },
+ *     },
+ * }
  * @psalm-type DebugConfig = array{
  *     max_items?: int|Param, // Max number of displayed items past the first level, -1 means no limit. // Default: 2500
  *     min_depth?: int|Param, // Minimum tree depth to clone all the items, 1 is default. // Default: 1
@@ -1654,6 +1707,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     nowo_ui_kit?: NowoUiKitConfig,
  *     nowo_form_kit?: NowoFormKitConfig,
  *     nowo_instance_settings?: NowoInstanceSettingsConfig,
+ *     nowo_outbound_url_guard?: NowoOutboundUrlGuardConfig,
+ *     nowo_sms_kit?: NowoSmsKitConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -1667,6 +1722,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_form_kit?: NowoFormKitConfig,
  *         nowo_instance_settings?: NowoInstanceSettingsConfig,
+ *         nowo_outbound_url_guard?: NowoOutboundUrlGuardConfig,
+ *         nowo_sms_kit?: NowoSmsKitConfig,
  *         debug?: DebugConfig,
  *         web_profiler?: WebProfilerConfig,
  *         nowo_hot_reload?: NowoHotReloadConfig,
@@ -1685,6 +1742,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_form_kit?: NowoFormKitConfig,
  *         nowo_instance_settings?: NowoInstanceSettingsConfig,
+ *         nowo_outbound_url_guard?: NowoOutboundUrlGuardConfig,
+ *         nowo_sms_kit?: NowoSmsKitConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -1699,6 +1758,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_form_kit?: NowoFormKitConfig,
  *         nowo_instance_settings?: NowoInstanceSettingsConfig,
+ *         nowo_outbound_url_guard?: NowoOutboundUrlGuardConfig,
+ *         nowo_sms_kit?: NowoSmsKitConfig,
  *         web_profiler?: WebProfilerConfig,
  *         nowo_hot_reload?: NowoHotReloadConfig,
  *         nowo_twig_inspector?: NowoTwigInspectorConfig,
