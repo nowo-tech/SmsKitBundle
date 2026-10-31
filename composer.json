@@ -1,0 +1,50 @@
+{
+    "name": "nowo-tech/sms-kit-bundle",
+    "description": "SMS sending for Symfony with a provider registry (Twilio, SMS Bridge, null), runtime configuration, encrypted credentials, a test command and an AuthKit adapter.",
+    "type": "symfony-bundle",
+    "keywords": [
+        "symfony",
+        "symfony-bundle",
+        "bundle",
+        "sms",
+        "twilio",
+        "notifications",
+        "2fa",
+        "messaging",
+        "nowo",
+        "frankenphp"
+    ],
+    "homepage": "https://github.com/nowo-tech/SmsKitBundle",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Héctor Franco Aceituno",
+            "email": "hectorfranco@nowo.tech",
+            "homepage": "https://github.com/HecFranco",
+            "role": "Maintainer"
+        },
+        {
+            "name": "Nowo.tech",
+            "homepage": "https://nowo.tech"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/nowo-tech/SmsKitBundle/issues",
+        "source": "https://github.com/nowo-tech/SmsKitBundle",
+        "docs": "https://github.com/nowo-tech/SmsKitBundle/tree/main/docs",
+        "changelog": "https://github.com/nowo-tech/SmsKitBundle/blob/main/docs/CHANGELOG.md"
+    },
+    "require": {
+        "php": ">=8.2 <8.6",
+        "symfony/config": "^7.4 || ^8.0",
+        "symfony/dependency-injection": "^7.4 || ^8.0",
+        "symfony/http-kernel": "^7.4 || ^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nowo\\SmsKitBundle\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
