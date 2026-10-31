@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-31
+
+First release: runtime-configured SMS sender with Twilio, SMS Bridge, log and null providers, encrypted credentials in InstanceSettings, destination policy against toll fraud, guarded provider HTTP, test CLI/action and an AuthKit password-reset SMS adapter. See [UPGRADING](UPGRADING.md#to-100).
+
 First release (1.0.0): SMS sending on top of InstanceSettingsBundle.
 
 ### Added
