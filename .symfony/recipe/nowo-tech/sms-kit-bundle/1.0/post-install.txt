@@ -1,0 +1,10 @@
+Nowo SMS Kit Bundle installed.
+
+1. Set up nowo-tech/instance-settings-bundle first (table, encryption key, admin UI routes): the "sms" section lives there.
+2. Open /admin/settings/sections/sms, choose a provider (log for development), its credentials and a test recipient,
+   then press "Send a test SMS" (route import added in config/routes/nowo_sms_kit.yaml).
+3. Optional fallbacks: map SMS_PROVIDER / TWILIO_* / SMS_BRIDGE_* in config/packages/nowo_sms_kit.yaml.
+4. Send from code with Nowo\SmsKitBundle\Sender\SmsSenderInterface, or test with:
+   php bin/console nowo:sms:send +15550100123 "Hello"
+
+Docs: https://github.com/nowo-tech/SmsKitBundle/tree/main/docs

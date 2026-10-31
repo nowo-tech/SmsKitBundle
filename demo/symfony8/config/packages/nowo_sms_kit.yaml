@@ -1,0 +1,12 @@
+# Demo: the log provider is preselected by app:demo:seed; nothing is sent. A real host keeps default_provider null and
+# maps its environment variables as fallbacks (see docs/CONFIGURATION.md).
+nowo_sms_kit:
+    default_provider: log
+    http:
+        timeout: 5.0
+        max_duration: 15.0
+    test_action:
+        enabled: true
+        rate_limit:
+            limit: 10
+            interval: '15 minutes'

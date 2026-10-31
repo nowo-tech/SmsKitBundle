@@ -1,0 +1,5 @@
+# "Send a test SMS" action of the sms settings section (POST, CSRF, access checker, rate limit).
+# Path: nowo_sms_kit.test_action.path (default /admin/settings/sms/test, covered by the settings access_control rule).
+nowo_sms_kit:
+    resource: .
+    type: nowo_sms_kit
