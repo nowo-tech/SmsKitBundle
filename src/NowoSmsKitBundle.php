@@ -28,8 +28,7 @@ final class NowoSmsKitBundle extends Bundle
     public const PROVIDER_TAG = 'nowo_sms_kit.provider';
 
     /**
-     * Registers the outbound URL guard fallback and the fail-closed guard of the send-test admin action (CSRF and
-     * instance settings access checker).
+     * Registers the outbound URL guard fallback and the fail-closed CSRF guard of the send-test admin action.
      */
     public function build(ContainerBuilder $container): void
     {

@@ -61,7 +61,7 @@ final readonly class SmsBridgeProvider implements SmsProviderInterface
     public function isConfigured(SmsConfig $config): bool
     {
         $token = trim((string) $config->bridgeAuthToken);
-        if (trim((string) $config->bridgeBaseUrl) === '' || $token === '') {
+        if (trim((string) $config->bridgeBaseUrl) === '' || $token === '' || !ProviderHttpClient::isHeaderSafe($token)) {
             return false;
         }
 

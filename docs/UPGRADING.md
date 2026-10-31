@@ -61,6 +61,10 @@ tokens through the same call, they are encrypted on flush), then drop the old co
 - Provider endpoints go through the outbound URL guard: a bridge on a private network needs
   `http.allow_private_endpoints: true` (and `http.require_https: false` for plain HTTP).
 - Unknown or empty provider names mean the null provider (as before); bodies longer than 1600 characters are refused.
+- Destinations in premium / satellite / international-network ranges (`+870`, `+878`, `+881`, `+882`, `+883`, `+888`,
+  `+979`, `+991`, `+808`) are refused by default (`nowo_sms_kit.destinations`).
+- The AuthKit reset SMS is sent after the response (`delivery: deferred`) instead of inside the request; exception
+  messages no longer contain provider texts (`SmsSendException::getDetail()` for logs).
 
 ### Breaking changes
 

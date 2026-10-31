@@ -30,8 +30,9 @@ other kit (MailKit, …).
 1. `ConfiguredSmsSender::send()` asks `SmsConfigResolver::current()` for the effective `SmsConfig`.
 2. The registry returns the provider named by `SmsConfig::$provider` (unknown → null provider + warning).
 3. The provider must be configured for that `SmsConfig`, else `SmsSendException`.
-4. The message is normalized: E.164 destination, sender (`from` → `sms.sender` → `nowo_sms_kit.sender`), trimmed body
-   (1–1600 characters).
+4. The message is normalized: E.164 destination checked by the `DestinationPolicy` (denied prefixes, allowed country
+   codes, budgets), sender (`from` → `sms.sender` → `nowo_sms_kit.sender`), trimmed body (1–1600 characters), device /
+   client ids and a public https status callback.
 5. The provider sends; HTTP providers go through `ProviderHttpClient` (endpoint checks, guard + DNS pin, timeouts,
    no redirects, error mapping and masking).
 6. The sender logs `SMS sent.` / `SMS not sent.` with the masked destination and rethrows failures.
@@ -50,12 +51,14 @@ with a FormKit CSRF-only `FormView`. The InstanceSettings settings scaffold rend
 `SendTestSmsController` (route from `SmsKitRouteLoader`, not autoconfigured) checks
 `InstanceSettingsAccessCheckerInterface::canAccess($user, 'sms')`, the CSRF token, the rate limiter
 (`RateLimiterFactory` on `cache.app`), sends to the saved test recipient and redirects to the section page with a flash.
-`TestActionPass` refuses to compile without form CSRF or the access checker.
+`TestActionPass` refuses to compile without form CSRF.
 
 ## AuthKit adapter
 
 `SmsPasswordResetNotifier` decorates `Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface` (`.inner` first),
-then sends `PasswordResetTokenResult::code()` to `PhoneNumberResolverInterface::resolve($context->user ?? $token->user)`.
+then hands `PasswordResetTokenResult::code()` for `PhoneNumberResolverInterface::resolve($context->user ?? $token->user)`
+to a `SmsDeliveryInterface`: `DeferredSmsDelivery` (default, sent on `kernel.terminate`), `MessengerSmsDelivery` or
+`SyncSmsDelivery`, all through `SafeSender` (never throws).
 
 ## Source layout
 

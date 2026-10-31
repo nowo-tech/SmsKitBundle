@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\SmsKitBundle\Sender;
 
+use Nowo\OutboundUrlGuardBundle\Guard\OutboundUrlGuard;
 use Nowo\SmsKitBundle\Exception\SmsSendException;
 use Nowo\SmsKitBundle\Log\Redactor;
 use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\Message\SmsSendResult;
 use Nowo\SmsKitBundle\Phone\E164;
 use Nowo\SmsKitBundle\Phone\SenderId;
+use Nowo\SmsKitBundle\Policy\DestinationPolicy;
 use Nowo\SmsKitBundle\Provider\NullSmsProvider;
 use Nowo\SmsKitBundle\Provider\SmsProviderInterface;
 use Nowo\SmsKitBundle\Provider\SmsProviderRegistry;
@@ -19,12 +21,15 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 use function mb_strlen;
+use function preg_match;
 use function sprintf;
+use function str_starts_with;
 use function trim;
 
 /**
  * Default {@see SmsSenderInterface}: resolves the effective configuration and the provider on every call, validates
- * the message (E.164 destination, sender, non-empty body up to {@see self::MAX_BODY_LENGTH} characters), delegates to
+ * the message (E.164 destination, destination policy and send budgets, sender, non-empty body up to
+ * {@see self::MAX_BODY_LENGTH} characters, device / client ids, public https status callback), delegates to
  * the provider and logs the outcome with the destination masked (never the body or credentials).
  *
  * An unknown provider name (for example a host provider that was removed) falls back to the null provider: nothing is
@@ -39,11 +44,15 @@ final readonly class ConfiguredSmsSender implements SmsSenderInterface
      * @param SmsProviderRegistry $providers registered providers
      * @param SmsConfigResolver $resolver effective configuration
      * @param LoggerInterface $logger PSR-3 logger
+     * @param DestinationPolicy $destinations destination / cost policy (`nowo_sms_kit.destinations`)
+     * @param OutboundUrlGuard $callbackGuard checks caller-supplied status callback URLs (public https only)
      */
     public function __construct(
         private SmsProviderRegistry $providers,
         private SmsConfigResolver $resolver,
         private LoggerInterface $logger = new NullLogger(),
+        private DestinationPolicy $destinations = new DestinationPolicy(),
+        private OutboundUrlGuard $callbackGuard = new OutboundUrlGuard(resolveDns: false),
     ) {
     }
 
@@ -71,6 +80,7 @@ final readonly class ConfiguredSmsSender implements SmsSenderInterface
                 'provider' => $provider->getName(),
                 'to'       => $masked,
                 'error'    => Redactor::redact($e->getMessage()),
+                'detail'   => $e->getDetail(),
             ]);
 
             throw $e;
@@ -129,6 +139,20 @@ final readonly class ConfiguredSmsSender implements SmsSenderInterface
         $from = $message->from ?? $config->sender;
         $from = $from === null || trim($from) === '' ? null : SenderId::normalize($from);
 
-        return $message->withNormalized(E164::normalize($message->to), $body, $from);
+        if ($message->deviceId !== null && $message->deviceId !== '' && preg_match(SmsMessage::DEVICE_ID_PATTERN, $message->deviceId) !== 1) {
+            throw new SmsSendException('SMS device id must be 1-64 letters, digits or dashes.');
+        }
+        if ($message->clientMessageId !== null && $message->clientMessageId !== '' && preg_match(SmsMessage::CLIENT_MESSAGE_ID_PATTERN, $message->clientMessageId) !== 1) {
+            throw new SmsSendException('SMS client message id must be 1-128 letters, digits, dots, dashes, underscores or colons.');
+        }
+        if ($message->statusCallbackUrl !== null && $message->statusCallbackUrl !== ''
+            && (!str_starts_with($message->statusCallbackUrl, 'https://') || !$this->callbackGuard->inspect($message->statusCallbackUrl, false, false)->isValid())) {
+            throw new SmsSendException('SMS status callback URL must be a public https URL.');
+        }
+
+        $to = E164::normalize($message->to);
+        $this->destinations->assertAllowed($to);
+
+        return $message->withNormalized($to, $body, $from);
     }
 }

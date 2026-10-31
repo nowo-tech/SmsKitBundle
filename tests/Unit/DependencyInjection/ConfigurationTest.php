@@ -30,13 +30,17 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame('null', $config['default_provider']);
         self::assertNull($config['sender']);
-        self::assertSame(['timeout' => 5.0, 'max_duration' => 15.0, 'allow_private_endpoints' => false, 'resolve_dns' => true, 'require_https' => true], $config['http']);
+        self::assertSame(['timeout' => 5.0, 'max_duration' => 15.0, 'allow_private_endpoints' => false, 'resolve_dns' => true, 'require_https' => true, 'max_response_bytes' => 65536], $config['http']);
+        self::assertSame([], $config['destinations']['allowed_country_codes']);
+        self::assertContains('882', $config['destinations']['denied_prefixes']);
+        self::assertFalse($config['destinations']['rate_limit']['per_destination']['enabled']);
+        self::assertFalse($config['destinations']['rate_limit']['global']['enabled']);
         self::assertSame('https://api.twilio.com', $config['providers']['twilio']['api_base_url']);
         self::assertNull($config['providers']['twilio']['auth_token']);
         self::assertSame('twilio', $config['providers']['sms_bridge']['api_mode']);
         self::assertTrue($config['providers']['log']['enabled']);
         self::assertSame(['enabled' => true, 'path' => '/admin/settings/sms/test', 'rate_limit' => ['limit' => 5, 'interval' => '15 minutes']], $config['test_action']);
-        self::assertSame(['enabled' => false, 'phone_property' => 'phone', 'phone_resolver' => null], $config['auth_kit']['password_reset']);
+        self::assertSame(['enabled' => false, 'phone_property' => 'phone', 'phone_resolver' => null, 'delivery' => 'deferred'], $config['auth_kit']['password_reset']);
     }
 
     public function testAcceptsAnEnvPlaceholderAsDefaultProvider(): void
@@ -64,6 +68,12 @@ final class ConfigurationTest extends TestCase
         yield 'phone property' => [['auth_kit' => ['password_reset' => ['phone_property' => 'phone-number']]], 'phone_property'];
         yield 'phone property type' => [['auth_kit' => ['password_reset' => ['phone_property' => 1]]], 'phone_property'];
         yield 'unknown key' => [['unknown' => true], 'unknown'];
+        yield 'response cap' => [['http' => ['max_response_bytes' => 10]], 'max_response_bytes'];
+        yield 'country code' => [['destinations' => ['allowed_country_codes' => ['+34']]], 'allowed_country_codes'];
+        yield 'denied prefix' => [['destinations' => ['denied_prefixes' => [882]]], 'denied_prefixes'];
+        yield 'budget interval' => [['destinations' => ['rate_limit' => ['global' => ['interval' => 'soon']]]], 'rate_limit.global.interval'];
+        yield 'budget interval type' => [['destinations' => ['rate_limit' => ['per_destination' => ['interval' => 3]]]], 'rate_limit.per_destination.interval'];
+        yield 'delivery' => [['auth_kit' => ['password_reset' => ['delivery' => 'later']]], 'delivery'];
     }
 
     /**

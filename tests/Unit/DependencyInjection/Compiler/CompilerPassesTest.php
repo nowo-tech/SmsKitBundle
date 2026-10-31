@@ -57,13 +57,6 @@ final class CompilerPassesTest extends TestCase
         }
     }
 
-    public function testTestActionPassNeedsTheAccessChecker(): void
-    {
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('nowo_instance_settings.web_ui.enabled: true');
-        (new TestActionPass())->process($this->container(checker: false));
-    }
-
     public function testOutboundUrlGuardFallback(): void
     {
         $container = new ContainerBuilder();

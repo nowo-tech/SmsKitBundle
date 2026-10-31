@@ -17,9 +17,16 @@ use Nowo\SmsKitBundle\AuthKit\PropertyPhoneNumberResolver;
 use Nowo\SmsKitBundle\AuthKit\SmsPasswordResetNotifier;
 use Nowo\SmsKitBundle\Command\SendSmsCommand;
 use Nowo\SmsKitBundle\Controller\SendTestSmsController;
+use Nowo\SmsKitBundle\Delivery\DeferredSmsDelivery;
+use Nowo\SmsKitBundle\Delivery\MessengerSmsDelivery;
+use Nowo\SmsKitBundle\Delivery\SafeSender;
+use Nowo\SmsKitBundle\Delivery\SendSmsMessage;
+use Nowo\SmsKitBundle\Delivery\SendSmsMessageHandler;
+use Nowo\SmsKitBundle\Delivery\SyncSmsDelivery;
 use Nowo\SmsKitBundle\Http\HttpPolicy;
 use Nowo\SmsKitBundle\Http\ProviderHttpClient;
 use Nowo\SmsKitBundle\NowoSmsKitBundle;
+use Nowo\SmsKitBundle\Policy\DestinationPolicy;
 use Nowo\SmsKitBundle\Provider\LogSmsProvider;
 use Nowo\SmsKitBundle\Provider\NullSmsProvider;
 use Nowo\SmsKitBundle\Provider\SmsBridgeProvider;
@@ -39,9 +46,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\CacheStorage;
 
+use function array_values;
 use function interface_exists;
 use function is_array;
 use function is_bool;
@@ -59,9 +68,11 @@ final class NowoSmsKitExtension extends Extension
 
     /**
      * @param string $authKitNotifierInterface AuthKit notifier interface the adapter decorates (overridable in tests)
+     * @param string $messageBusInterface Messenger bus interface required by `delivery: messenger` (overridable in tests)
      */
     public function __construct(
         private readonly string $authKitNotifierInterface = PasswordResetNotifierInterface::class,
+        private readonly string $messageBusInterface = MessageBusInterface::class,
     ) {
     }
 
@@ -84,20 +95,21 @@ final class NowoSmsKitExtension extends Extension
         $config = $this->processConfiguration(new Configuration(), $configs);
         $this->assertLiteralBooleans($config);
 
-        /* @var array{default_provider: string, sender: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null}}} $config */
+        /* @var array{default_provider: string, sender: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int}, destinations: array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string}}} $config */
         $container->setParameter('nowo_sms_kit.test_action.enabled', $config['test_action']['enabled']);
         $container->setParameter('nowo_sms_kit.test_action.path', $config['test_action']['path']);
 
         $container->registerForAutoconfiguration(SmsProviderInterface::class)->addTag(NowoSmsKitBundle::PROVIDER_TAG);
 
         $this->registerProviders($container, $config['http'], $config['providers']);
+        $this->registerDestinations($container, $config['destinations']);
         $this->registerSender($container, $config['default_provider'], $config['sender'], $config['providers'], $config['test_action']['enabled']);
         $this->registerTestAction($container, $config['test_action']);
         $this->registerAuthKit($container, $config['auth_kit']['password_reset']);
     }
 
     /**
-     * @param array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool} $http
+     * @param array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int} $http
      * @param array{log: array{enabled: bool}, twilio: array{enabled: bool}, sms_bridge: array{enabled: bool}} $providers
      */
     private function registerProviders(ContainerBuilder $container, array $http, array $providers): void
@@ -108,12 +120,14 @@ final class NowoSmsKitExtension extends Extension
             $http['allow_private_endpoints'],
             $http['resolve_dns'],
             $http['require_https'],
+            $http['max_response_bytes'],
         ]));
-        $container->setDefinition(ProviderHttpClient::class, new Definition(ProviderHttpClient::class, [
+        $container->setDefinition(ProviderHttpClient::class, (new Definition(ProviderHttpClient::class, [
             new Reference('http_client'),
             new Reference(OutboundUrlGuard::class),
             new Reference(HttpPolicy::class),
-        ]));
+            new Reference('logger'),
+        ]))->addTag('monolog.logger', ['channel' => 'sms']));
 
         // Tag priority = order of the provider choices in the settings form.
         $container->setDefinition(NullSmsProvider::class, (new Definition(NullSmsProvider::class))
@@ -173,7 +187,9 @@ final class NowoSmsKitExtension extends Extension
         $container->setDefinition(ConfiguredSmsSender::class, (new Definition(ConfiguredSmsSender::class, [
             new Reference(SmsProviderRegistry::class),
             new Reference(SmsConfigResolver::class),
-            new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            new Reference('logger'),
+            new Reference(DestinationPolicy::class),
+            new Reference(OutboundUrlGuard::class),
         ]))->addTag('monolog.logger', ['channel' => 'sms']));
         $container->setAlias(SmsSenderInterface::class, ConfiguredSmsSender::class)->setPublic(true);
 
@@ -225,14 +241,45 @@ final class NowoSmsKitExtension extends Extension
             new Reference('router'),
             new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            new Reference('logger'),
         ]))
+            ->addTag('monolog.logger', ['channel' => 'sms'])
             ->setAutoconfigured(false)
             ->setPublic(true)
             ->addTag('controller.service_arguments'));
     }
 
     /**
-     * @param array{enabled: bool, phone_property: string, phone_resolver: string|null} $passwordReset
+     * @param array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}} $destinations
+     */
+    private function registerDestinations(ContainerBuilder $container, array $destinations): void
+    {
+        $limiters = [];
+        foreach (['per_destination', 'global'] as $name) {
+            $budget = $destinations['rate_limit'][$name];
+            if (!$budget['enabled']) {
+                $limiters[$name] = null;
+                continue;
+            }
+            $id = 'nowo_sms_kit.destinations.' . $name . '_limiter';
+            $container->setDefinition($id . '.storage', new Definition(CacheStorage::class, [new Reference('cache.app')]));
+            $container->setDefinition($id, new Definition(RateLimiterFactory::class, [
+                ['id' => 'nowo_sms_kit_' . $name, 'policy' => 'sliding_window', 'limit' => $budget['limit'], 'interval' => $budget['interval']],
+                new Reference($id . '.storage'),
+            ]));
+            $limiters[$name] = new Reference($id);
+        }
+
+        $container->setDefinition(DestinationPolicy::class, new Definition(DestinationPolicy::class, [
+            array_values($destinations['allowed_country_codes']),
+            array_values($destinations['denied_prefixes']),
+            $limiters['per_destination'],
+            $limiters['global'],
+        ]));
+    }
+
+    /**
+     * @param array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string} $passwordReset
      */
     private function registerAuthKit(ContainerBuilder $container, array $passwordReset): void
     {
@@ -247,9 +294,38 @@ final class NowoSmsKitExtension extends Extension
         $resolver = $passwordReset['phone_resolver'];
         $container->setAlias(PhoneNumberResolverInterface::class, is_string($resolver) && $resolver !== '' ? $resolver : PropertyPhoneNumberResolver::class);
 
+        $container->setDefinition(SafeSender::class, (new Definition(SafeSender::class, [
+            new Reference(SmsSenderInterface::class),
+            new Reference('logger'),
+        ]))->addTag('monolog.logger', ['channel' => 'sms']));
+
+        $delivery = match ($passwordReset['delivery']) {
+            'sync'      => SyncSmsDelivery::class,
+            'messenger' => MessengerSmsDelivery::class,
+            default     => DeferredSmsDelivery::class,
+        };
+        if ($delivery === MessengerSmsDelivery::class) {
+            if (!interface_exists($this->messageBusInterface)) {
+                throw new LogicException('NowoSmsKitBundle: nowo_sms_kit.auth_kit.password_reset.delivery: messenger requires symfony/messenger.');
+            }
+            $container->setDefinition(MessengerSmsDelivery::class, (new Definition(MessengerSmsDelivery::class, [
+                new Reference('messenger.default_bus'),
+                new Reference('logger'),
+            ]))->addTag('monolog.logger', ['channel' => 'sms']));
+            $container->setDefinition(SendSmsMessageHandler::class, (new Definition(SendSmsMessageHandler::class, [new Reference(SafeSender::class)]))
+                ->addTag('messenger.message_handler', ['handles' => SendSmsMessage::class]));
+        } elseif ($delivery === SyncSmsDelivery::class) {
+            $container->setDefinition(SyncSmsDelivery::class, new Definition(SyncSmsDelivery::class, [new Reference(SafeSender::class)]));
+        } else {
+            $container->setDefinition(DeferredSmsDelivery::class, (new Definition(DeferredSmsDelivery::class, [new Reference(SafeSender::class)]))
+                ->addTag('kernel.reset', ['method' => 'reset'])
+                ->addTag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => 'flush'])
+                ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'flush']));
+        }
+
         $container->setDefinition(SmsPasswordResetNotifier::class, (new Definition(SmsPasswordResetNotifier::class, [
             new Reference('.inner'),
-            new Reference(SmsSenderInterface::class),
+            new Reference($delivery),
             new Reference(PhoneNumberResolverInterface::class),
             new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),

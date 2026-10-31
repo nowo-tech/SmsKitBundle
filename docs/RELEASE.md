@@ -8,7 +8,7 @@
 ## Before the first tag (1.0.0)
 
 1. Independent AI security audit recorded with a passing grade (REQ-SEC-004) — see [SECURITY.md](SECURITY.md).
-2. `nowo-tech/instance-settings-bundle` tagged **1.0.0**: replace `"dev-main as 1.0.0"` with `"^1.0"` in `composer.json`, drop the `repositories` VCS entry (root and demo), refresh the lock files.
+2. `nowo-tech/instance-settings-bundle` required as `^1.0` (done) and both lock files current.
 3. [CHANGELOG.md](CHANGELOG.md) — move `[Unreleased]` to `## [1.0.0] - YYYY-MM-DD`.
 4. [UPGRADING.md](UPGRADING.md) — "To 1.0.0" section current.
 5. [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md) — audited revision set to the tag.

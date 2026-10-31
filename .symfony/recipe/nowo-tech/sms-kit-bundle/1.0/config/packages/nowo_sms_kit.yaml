@@ -9,11 +9,21 @@ nowo_sms_kit:
     http:
         timeout: 5.0
         max_duration: 15.0
-        # Self-hosted SMS Bridge on a private network:
+        # Self-hosted SMS Bridge on a private network (keep resolve_dns: true — Docker service names resolve too, and the
+        # answer is checked against cloud metadata and pinned; resolve_dns: false would accept any hostname):
         # allow_private_endpoints: true
         # require_https: false
         allow_private_endpoints: false
+        resolve_dns: true
         require_https: true
+        max_response_bytes: 65536
+
+    # Destination / cost policy (SMS pumping, toll fraud): premium / satellite prefixes are refused by default.
+    # destinations:
+    #     allowed_country_codes: ['34']
+    #     rate_limit:
+    #         per_destination: { enabled: true, limit: 3, interval: '1 hour' }
+    #         global: { enabled: true, limit: 500, interval: '1 day' }
 
     # providers:
     #     twilio:
@@ -36,3 +46,4 @@ nowo_sms_kit:
     #     password_reset:
     #         enabled: true
     #         phone_property: phone
+    #         delivery: deferred      # sent after the response; messenger for an async transport

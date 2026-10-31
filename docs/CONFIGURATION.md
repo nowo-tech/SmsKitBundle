@@ -7,6 +7,7 @@
 - [http](#http)
   - [Timeout hierarchy (REQ-RUNTIME-001)](#timeout-hierarchy-req-runtime-001)
 - [providers](#providers)
+- [destinations](#destinations)
 - [test_action](#test_action)
 - [auth_kit](#auth_kit)
 - [The sms settings section](#the-sms-settings-section)
@@ -25,9 +26,16 @@ nowo_sms_kit:
     http:
         timeout: 5.0                  # idle timeout (s) of a provider request, 0.1 … 60
         max_duration: 15.0            # total duration cap (s), 0.1 … 120, >= timeout
-        allow_private_endpoints: false  # loopback / RFC 1918 endpoints (self-hosted SMS Bridge); metadata stays blocked
-        resolve_dns: true             # resolve and pin the endpoint address (disable only for Docker service names)
+        allow_private_endpoints: false  # loopback / RFC 1918 endpoints (self-hosted SMS Bridge); metadata refused while resolve_dns is on
+        resolve_dns: true             # resolve, check and pin the endpoint address; keep it on (Docker service names resolve too)
         require_https: true           # refuse http:// endpoints
+        max_response_bytes: 65536     # largest provider response read (1024 … 4194304); larger transfers are aborted
+    destinations:
+        allowed_country_codes: []     # calling codes a destination must start with, e.g. ['34', '1']; empty = every country
+        denied_prefixes: ['870', '878', '881', '882', '883', '888', '979', '991', '808']   # always refused (replaces the defaults when set)
+        rate_limit:
+            per_destination: { enabled: false, limit: 10, interval: '1 hour' }   # budget per destination number
+            global: { enabled: false, limit: 10, interval: '1 hour' }            # budget for the whole instance
     providers:
         log:
             enabled: true             # register the "log" provider
@@ -45,7 +53,7 @@ nowo_sms_kit:
             auth_token: null
             device_id: null
     test_action:
-        enabled: true                 # "Send a test SMS" button + POST route (needs the InstanceSettings admin UI)
+        enabled: true                 # "Send a test SMS" button + POST route
         path: /admin/settings/sms/test
         rate_limit:
             limit: 5                  # test sends per user (or per client IP when anonymous) and window
@@ -55,6 +63,7 @@ nowo_sms_kit:
             enabled: false            # decorate AuthKit's PasswordResetNotifierInterface
             phone_property: phone     # user property with the E.164 phone
             phone_resolver: null      # service id of a PhoneNumberResolverInterface
+            delivery: deferred        # deferred (after the response) | messenger | sync
 ```
 
 Unknown keys are rejected. Security switches (`http.allow_private_endpoints`, `http.require_https`, `http.resolve_dns`, `test_action.enabled`, `auth_kit.password_reset.enabled`) must be literal booleans: `%env(bool:…)%` placeholders are refused because they would read as `true` while the container is built.
@@ -87,11 +96,17 @@ Provider names are case-insensitive; `''`, `none`, `disabled`, `off` and `null` 
 | --- | --- | --- |
 | `timeout` | `5.0` | Idle timeout in seconds of every provider request (HttpClient `timeout`). |
 | `max_duration` | `15.0` | Total duration cap in seconds, connect included (HttpClient `max_duration`). Must be `>= timeout`. |
-| `allow_private_endpoints` | `false` | Allow loopback / private-network endpoints, e.g. an SMS Bridge on the LAN or a Docker network. Cloud metadata addresses (169.254.0.0/16, fe80::/10, …) stay blocked. |
-| `resolve_dns` | `true` | Resolve the endpoint host and pin the checked address (no DNS rebinding between the check and the request). Disable only when the endpoint is a Docker service name that must not be looked up. |
+| `allow_private_endpoints` | `false` | Allow loopback / private-network endpoints, e.g. an SMS Bridge on the LAN or a Docker network. Cloud metadata **literals** (169.254.0.0/16, fe80::/10, …) and well-known metadata names stay blocked; **hostnames** are checked against metadata only while `resolve_dns` is true. |
+| `resolve_dns` | `true` | Resolve the endpoint host, check every answer and pin the checked address (no DNS rebinding between the check and the request). Keep it on: Docker service names resolve through Docker's DNS (with `allow_private_endpoints: true`). With `false`, hostnames are neither resolved nor checked, so a name pointing at cloud metadata (`169.254.169.254.nip.io`, attacker DNS) is **accepted**; combined with `allow_private_endpoints: true` every send logs a warning. |
+| `max_response_bytes` | `65536` | Largest provider response body read: a larger `Content-Length` or a transfer that passes the cap is aborted (`on_progress`) and the send fails. |
 | `require_https` | `true` | Refuse `http://` endpoints: the Account SID / Auth Token or the client key travel in every request. |
 
 Every request also gets `max_redirects: 0` (a redirect would be an unchecked second URL) and endpoints with user info, a query string or a fragment are refused. The guard is `nowo-tech/outbound-url-guard-bundle`'s `OutboundUrlGuard` service (its `dns_timeout` / `php_binary` apply); SmsKit passes `allow_private_endpoints` and `resolve_dns` on every call.
+
+Other notes:
+
+- **Proxies:** Symfony HttpClient honours `HTTPS_PROXY` / `HTTP_PROXY`; a proxy resolves the host itself, so the DNS pin does not apply. Add the provider hosts to `NO_PROXY` when an outbound proxy is set, or rely on the proxy's own egress policy.
+- **Ports** are not restricted: a `bridge_base_url` such as `https://host:22` is attempted (POST, fixed path, rate limited, `sms` area only). Restrict egress at the network layer when that matters.
 
 ### Timeout hierarchy (REQ-RUNTIME-001)
 
@@ -117,14 +132,27 @@ Raise them together. Long bulk sends belong in a Messenger worker, not in a web 
 
 The null provider is always registered. Host providers: see [USAGE](USAGE.md#writing-a-provider).
 
+## destinations
+
+Applied by `ConfiguredSmsSender` to **every** send (application code, CLI, send-test action, AuthKit adapter), after E.164 normalisation, against SMS pumping / toll fraud and SMS bombing:
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `allowed_country_codes` | `[]` (every country) | Calling codes (digit strings) a destination must start with, e.g. `['34', '351']`. Set it when you know where your users are. |
+| `denied_prefixes` | `870`, `878`, `881`, `882`, `883`, `888`, `979`, `991`, `808` | Prefixes always refused: Inmarsat, UPT, satellite (GMSS), international networks, premium IPRS, OCHA, ITPCS, shared cost. Setting the key replaces the list (`[]` disables it). |
+| `rate_limit.per_destination` | off | `{enabled: true, limit, interval}`: messages per destination number and sliding window (key: SHA-256 of the number). |
+| `rate_limit.global` | off | `{enabled: true, limit, interval}`: messages for the whole instance and window. |
+
+Refusals raise `DestinationNotAllowedException` (a `SmsSendException`). Budgets live in `cache.app`: use a shared pool (Redis, …) when several nodes send. Also enable the provider-side controls (Twilio Geo Permissions, SMS Pumping Protection) and verify phone numbers before using them for password resets.
+
 ## test_action
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `enabled` | `true` | Shows **Send a test SMS** on the `sms` section page and registers the POST route of the `nowo_sms_kit` route loader. Needs the InstanceSettings admin UI and form CSRF. |
+| `enabled` | `true` | Shows **Send a test SMS** on the `sms` section page and registers the POST route of the `nowo_sms_kit` route loader. Needs form CSRF; the button shows on the InstanceSettings section page (without that admin UI the route still answers, protected, and redirects to `/`). |
 | `path` | `/admin/settings/sms/test` | Route path. Keep it under the InstanceSettings prefix so the same firewall rule covers it. |
 | `rate_limit.limit` | `5` | Messages per window and per user (hash of the user identifier; client IP hash when anonymous). |
-| `rate_limit.interval` | `15 minutes` | Sliding window, any relative time `strtotime()` understands. State lives in `cache.app`. |
+| `rate_limit.interval` | `15 minutes` | Sliding window, any relative time `strtotime()` understands. State lives in `cache.app`: per node with the filesystem default, so use a shared pool in a cluster (N nodes otherwise allow N × limit). |
 
 ## auth_kit
 
@@ -133,6 +161,7 @@ The null provider is always registered. Host providers: see [USAGE](USAGE.md#wri
 | `password_reset.enabled` | `false` | Decorates `Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface` with `SmsPasswordResetNotifier`: the decorated notifier (your e-mail notifier) runs first, then the reset code (delivery modes `code` / `both`) is sent to the account phone. Requires `nowo-tech/auth-kit-bundle`. |
 | `password_reset.phone_property` | `phone` | Property read through `get<Property>()`, `<property>()` or the public property of the AuthKit user. |
 | `password_reset.phone_resolver` | `null` | Service id of a `PhoneNumberResolverInterface` when the number lives elsewhere. |
+| `password_reset.delivery` | `deferred` | `deferred`: the code SMS is sent after the response (`kernel.terminate` / `console.terminate`), so the reset response time does not depend on the provider. `messenger`: a `SendSmsMessage` is dispatched (needs `symfony/messenger`; route it to an async transport). `sync`: sent inside the request (timing signal; tests / authenticated flows only). |
 
 ## The sms settings section
 
@@ -188,7 +217,6 @@ Log records use the `sms` Monolog channel when MonologBundle is installed.
 The container refuses to compile when:
 
 - `test_action.enabled` is true and form CSRF is unavailable or disabled (`framework.csrf_protection`, `framework.form.csrf_protection`);
-- `test_action.enabled` is true and the InstanceSettings admin UI is disabled (no access checker for the `sms` area);
-- `auth_kit.password_reset.enabled` is true without `nowo-tech/auth-kit-bundle`;
+- `auth_kit.password_reset.enabled` is true without `nowo-tech/auth-kit-bundle`, or `delivery: messenger` without `symfony/messenger`;
 - a security switch is an environment placeholder;
 - two providers share a name, or a provider name is not lower snake case (at first use).

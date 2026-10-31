@@ -25,10 +25,10 @@ final readonly class TwilioProvider implements SmsProviderInterface
     public const NAME = 'twilio';
 
     /** Account SID pattern. */
-    public const ACCOUNT_SID_PATTERN = '/^AC[0-9a-fA-F]{32}$/';
+    public const ACCOUNT_SID_PATTERN = '/^AC[0-9a-fA-F]{32}$/D';
 
     /** Messaging Service SID pattern. */
-    public const MESSAGING_SERVICE_SID_PATTERN = '/^MG[0-9a-fA-F]{32}$/';
+    public const MESSAGING_SERVICE_SID_PATTERN = '/^MG[0-9a-fA-F]{32}$/D';
 
     /**
      * @param ProviderHttpClient $http guarded HTTP client
@@ -63,6 +63,7 @@ final readonly class TwilioProvider implements SmsProviderInterface
     {
         return preg_match(self::ACCOUNT_SID_PATTERN, trim((string) $config->twilioAccountSid)) === 1
             && trim((string) $config->twilioAuthToken) !== ''
+            && ProviderHttpClient::isHeaderSafe((string) $config->twilioAuthToken)
             && ($config->sender !== null || $this->hasMessagingService($config));
     }
 
@@ -78,7 +79,7 @@ final readonly class TwilioProvider implements SmsProviderInterface
     {
         $accountSid = trim((string) $config->twilioAccountSid);
         $authToken  = trim((string) $config->twilioAuthToken);
-        if (preg_match(self::ACCOUNT_SID_PATTERN, $accountSid) !== 1 || $authToken === '') {
+        if (preg_match(self::ACCOUNT_SID_PATTERN, $accountSid) !== 1 || $authToken === '' || !ProviderHttpClient::isHeaderSafe($authToken)) {
             throw new SmsSendException('Twilio is not configured (Account SID and Auth Token).');
         }
         if ($message->from === null && !$this->hasMessagingService($config)) {

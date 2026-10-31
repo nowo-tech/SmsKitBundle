@@ -32,6 +32,7 @@ final class TwilioProviderTest extends TestCase
         self::assertFalse($provider->isConfigured($this->config(null, 'MG-invalid')));
         self::assertFalse($provider->isConfigured($this->config(sid: 'AC123')));
         self::assertFalse($provider->isConfigured($this->config(token: ' ')));
+        self::assertFalse($provider->isConfigured($this->config(token: "abc\nX-Injected: 1")));
     }
 
     public function testSendsAMessagesApiRequest(): void
@@ -83,9 +84,9 @@ final class TwilioProviderTest extends TestCase
             $provider->send(new SmsMessage(Numbers::TO, 'hello', 'Acme'), $this->config());
             self::fail('Expected a rejection.');
         } catch (SmsSendException $e) {
-            self::assertStringContainsString('Twilio rejected the message (HTTP 400)', $e->getMessage());
-            self::assertStringContainsString('+15*******23', $e->getMessage());
-            self::assertStringNotContainsString(Numbers::TO, $e->getMessage());
+            self::assertSame('Twilio rejected the message (HTTP 400).', $e->getMessage());
+            self::assertStringContainsString('+15*******23', (string) $e->getDetail());
+            self::assertStringNotContainsString(Numbers::TO, (string) $e->getDetail());
         }
     }
 
@@ -93,7 +94,11 @@ final class TwilioProviderTest extends TestCase
     {
         $provider = new TwilioProvider($this->http([self::json(['error_message' => 'Queue overflow'], 429)]));
 
-        $this->expectExceptionMessage('Queue overflow');
-        $provider->send(new SmsMessage(Numbers::TO, 'hello', 'Acme'), $this->config());
+        try {
+            $provider->send(new SmsMessage(Numbers::TO, 'hello', 'Acme'), $this->config());
+            self::fail('Expected a rejection.');
+        } catch (SmsSendException $e) {
+            self::assertSame('Queue overflow', $e->getDetail());
+        }
     }
 }

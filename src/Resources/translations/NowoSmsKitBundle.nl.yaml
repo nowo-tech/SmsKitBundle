@@ -29,7 +29,7 @@ settings:
         send_test: 'Test-sms versturen'
 flash:
     test_sent: 'Test-sms verstuurd naar %recipient% via %provider% (status: %status%).'
-    test_failed: 'De test-sms kon niet worden verstuurd: %reason%'
+    test_failed: 'De test-sms kon niet worden verstuurd: %reason% (referentie %reference%)'
     test_no_recipient: 'Sla eerst een testontvanger op.'
     test_rate_limited: 'Te veel testberichten. Probeer het later opnieuw.'
 test_sms:

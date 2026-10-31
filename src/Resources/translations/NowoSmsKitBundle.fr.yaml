@@ -29,7 +29,7 @@ settings:
         send_test: 'Envoyer un SMS de test'
 flash:
     test_sent: 'SMS de test envoyé à %recipient% via %provider% (statut : %status%).'
-    test_failed: 'Le SMS de test n''a pas pu être envoyé : %reason%'
+    test_failed: 'Le SMS de test n''a pas pu être envoyé : %reason% (référence %reference%)'
     test_no_recipient: 'Enregistrez d''abord un destinataire de test.'
     test_rate_limited: 'Trop de messages de test. Réessayez plus tard.'
 test_sms:

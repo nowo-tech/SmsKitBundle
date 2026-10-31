@@ -106,9 +106,10 @@ final class SmsKitTestKernel extends Kernel
             'orm'  => [],
         ]);
         $container->extension('nowo_doctrine_encrypt', [
-            'default_profile'    => 'default',
-            'secret_permissions' => ['enabled' => false],
-            'profiles'           => ['default' => ['encryptor_class' => 'Halite', 'secret_directory_path' => self::baseDir() . '/' . $this->id . '/keys']],
+            'default_profile'      => 'default',
+            'secret_permissions'   => ['enabled' => false],
+            'generate_missing_key' => true,
+            'profiles'             => ['default' => ['encryptor_class' => 'Halite', 'secret_directory_path' => self::baseDir() . '/' . $this->id . '/keys']],
         ]);
         $container->extension('security', [
             'password_hashers' => ['Symfony\Component\Security\Core\User\InMemoryUser' => 'plaintext'],

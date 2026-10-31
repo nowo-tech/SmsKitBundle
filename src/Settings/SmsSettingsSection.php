@@ -6,9 +6,11 @@ namespace Nowo\SmsKitBundle\Settings;
 
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Nowo\InstanceSettingsBundle\Section\AbstractSettingsSection;
+use Nowo\InstanceSettingsBundle\Section\SectionActionContext;
 use Nowo\InstanceSettingsBundle\Section\SettingField;
 use Nowo\InstanceSettingsBundle\Section\SettingsSectionActionsInterface;
 use Nowo\SmsKitBundle\Controller\SendTestSmsController;
+use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\NowoSmsKitBundle;
 use Nowo\SmsKitBundle\Phone\E164;
 use Nowo\SmsKitBundle\Phone\SenderId;
@@ -99,15 +101,17 @@ final class SmsSettingsSection extends AbstractSettingsSection implements Settin
         yield SettingField::choice('bridge_api_mode', ['settings.sms.bridge_api_mode_twilio' => SmsConfig::BRIDGE_MODE_TWILIO, 'settings.sms.bridge_api_mode_native' => SmsConfig::BRIDGE_MODE_NATIVE], null, 'settings.sms.bridge_api_mode');
         yield SettingField::string('bridge_account_sid', null, 'settings.sms.bridge_account_sid', constraints: [new Regex(TwilioProvider::ACCOUNT_SID_PATTERN, 'An SMS Bridge Account SID is "AC" followed by 32 hexadecimal characters.')]);
         yield SettingField::secret('bridge_auth_token', 'settings.sms.bridge_auth_token', 'settings.sms.bridge_auth_token_help');
-        yield SettingField::string('bridge_device_id', null, 'settings.sms.bridge_device_id', 'settings.sms.bridge_device_id_help', constraints: [new Regex('/^[A-Za-z0-9-]{1,64}$/', 'A device id has 1 to 64 letters, digits or dashes.')]);
+        yield SettingField::string('bridge_device_id', null, 'settings.sms.bridge_device_id', 'settings.sms.bridge_device_id_help', constraints: [new Regex(SmsMessage::DEVICE_ID_PATTERN, 'A device id has 1 to 64 letters, digits or dashes.')]);
     }
 
     /**
      * "Send a test SMS" (POST + CSRF) when the action is enabled.
      *
+     * @param SectionActionContext $context section, request and user of the page being rendered (unused: the page itself is access-checked)
+     *
      * @return iterable<Action>
      */
-    public function getActions(): iterable
+    public function getActions(SectionActionContext $context): iterable
     {
         if (!$this->testAction || !$this->urls instanceof UrlGeneratorInterface || !$this->csrfForms instanceof CsrfOnlyFormFactory) {
             return [];

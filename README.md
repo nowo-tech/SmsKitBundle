@@ -22,10 +22,11 @@ The provider and its configuration are resolved on every send and memoized for t
 - **Runtime configuration** — the `sms` instance settings section stores the provider, the sender (E.164 number or alphanumeric id), a test recipient and the provider credentials; Auth Tokens and client keys are **encrypted secrets** never rendered back. Empty fields fall back to `nowo_sms_kit.*` configuration (typically `%env()%`).
 - **One sender API** — `SmsSenderInterface::send(new SmsMessage($to, $body))`, `isConfigured()`, `getProviderId()`; the provider and configuration are resolved per send (worker-safe), with validation of the E.164 destination, the sender and the body (1–1600 characters).
 - **Safe outbound HTTP** — every provider call goes through [OutboundUrlGuardBundle](https://github.com/nowo-tech/OutboundUrlGuardBundle) (HTTPS required, no credentials in URLs, private ranges refused unless allowed, metadata always blocked, DNS pinned), with an idle timeout, a total duration cap and no redirects (REQ-RUNTIME-001).
+- **Destination policy** — premium / satellite / international-network prefixes refused by default, optional allowed country codes and per-destination / global send budgets, applied to every send (SMS pumping and toll-fraud protection).
 - **Redacted logging** — logs carry the provider, the masked destination (`+15*******23`), the message id and status; never the body, tokens or full numbers; provider error texts are masked too.
 - **Test command** — `php bin/console nowo:sms:send +15550100123 "Hello"` (`--from`, `--device-id`, `--client-message-id`).
-- **"Send a test SMS" action** — a POST button on the settings page: instance settings access checker for the `sms` area, CSRF (FormKit CSRF-only form), per-user rate limit, flash feedback with the recipient masked; the container refuses to compile without CSRF or the access checker.
-- **AuthKit adapter** — opt-in decorator of AuthKit's `PasswordResetNotifierInterface` that also sends the reset **code** by SMS to the phone stored on the account.
+- **"Send a test SMS" action** — a POST button on the settings page: instance settings access checker for the `sms` area, CSRF (FormKit CSRF-only form), per-user rate limit, flash feedback with the recipient masked; the container refuses to compile without form CSRF.
+- **AuthKit adapter** — opt-in decorator of AuthKit's `PasswordResetNotifierInterface` that also sends the reset **code** by SMS to the phone stored on the account, after the response by default (or through Messenger), never breaking the reset flow.
 - **Translations** — `NowoSmsKitBundle` domain in en, es, fr, de, it, pt and nl.
 
 ## Installation

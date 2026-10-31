@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Nowo\SmsKitBundle\Http;
 
 /**
- * Limits of every provider HTTP call (`nowo_sms_kit.http`): timeouts (REQ-RUNTIME-001) and the outbound URL policy.
+ * Limits of every provider HTTP call (`nowo_sms_kit.http`): timeouts (REQ-RUNTIME-001), response size cap and the
+ * outbound URL policy.
  */
 final readonly class HttpPolicy
 {
     /**
      * @param float $timeout idle timeout in seconds (no byte received for that long → transport error)
      * @param float $maxDuration total duration cap in seconds of one request, connect included
-     * @param bool $allowPrivateEndpoints allow loopback / RFC 1918 endpoints (self-hosted SMS Bridge); cloud metadata stays blocked
+     * @param bool $allowPrivateEndpoints allow loopback / RFC 1918 endpoints (self-hosted SMS Bridge); metadata literals stay blocked, metadata hostnames only with $resolveDns
      * @param bool $resolveDns resolve the endpoint host and pin the checked address (DNS rebinding protection)
      * @param bool $requireHttps refuse plain `http://` endpoints (credentials travel in every request)
+     * @param int $maxResponseBytes largest provider response body read (the transfer is aborted beyond it)
      */
     public function __construct(
         public float $timeout = 5.0,
@@ -22,6 +24,7 @@ final readonly class HttpPolicy
         public bool $allowPrivateEndpoints = false,
         public bool $resolveDns = true,
         public bool $requireHttps = true,
+        public int $maxResponseBytes = 65536,
     ) {
     }
 }

@@ -24,7 +24,7 @@ use function trim;
 final class E164
 {
     /** Pattern of a normalized number: `+` and 7 to 15 digits, first digit 1-9. */
-    public const PATTERN = '/^\+[1-9]\d{6,14}$/';
+    public const PATTERN = '/^\+[1-9]\d{6,14}$/D';
 
     /**
      * Removes whitespace and validates the result.

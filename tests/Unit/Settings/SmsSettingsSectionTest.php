@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\SmsKitBundle\Tests\Unit\Settings;
 
+use Nowo\InstanceSettingsBundle\Section\SectionActionContext;
 use Nowo\InstanceSettingsBundle\Section\SettingField;
 use Nowo\SmsKitBundle\Controller\SendTestSmsController;
 use Nowo\SmsKitBundle\Provider\LogSmsProvider;
@@ -14,6 +15,7 @@ use Nowo\SmsKitBundle\Tests\Support\Forms;
 use Nowo\UiKitBundle\View\Action;
 use Nowo\UiKitBundle\View\Label;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Generator\UrlGenerator;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
@@ -54,15 +56,15 @@ final class SmsSettingsSectionTest extends TestCase
 
     public function testNoActionWhenDisabledOrUnwired(): void
     {
-        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry()))->getActions()));
-        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry(), $this->urls(), Forms::csrf(), false))->getActions()));
-        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry(), null, Forms::csrf(), true))->getActions()));
-        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry(), $this->urls(), null, true))->getActions()));
+        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry()))->getActions($this->context())));
+        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry(), $this->urls(), Forms::csrf(), false))->getActions($this->context())));
+        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry(), null, Forms::csrf(), true))->getActions($this->context())));
+        self::assertSame([], iterator_to_array((new SmsSettingsSection($this->registry(), $this->urls(), null, true))->getActions($this->context())));
     }
 
     public function testSendTestActionIsACsrfPost(): void
     {
-        $actions = iterator_to_array((new SmsSettingsSection($this->registry(), $this->urls(), Forms::csrf(), true))->getActions());
+        $actions = iterator_to_array((new SmsSettingsSection($this->registry(), $this->urls(), Forms::csrf(), true))->getActions($this->context()));
 
         self::assertCount(1, $actions);
         $action = $actions[0];
@@ -74,6 +76,11 @@ final class SmsSettingsSectionTest extends TestCase
         self::assertNotNull($action->form);
         self::assertSame('csrf_only', $action->form->vars['name']);
         self::assertArrayHasKey('_token', $action->form->children);
+    }
+
+    private function context(): SectionActionContext
+    {
+        return new SectionActionContext('sms', new Request());
     }
 
     private function urls(): UrlGenerator
