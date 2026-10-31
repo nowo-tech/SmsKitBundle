@@ -1,6 +1,6 @@
 {
     "name": "nowo-tech/sms-kit-bundle",
-    "description": "SMS sending for Symfony with a provider registry (Twilio, SMS Bridge, null), runtime configuration, encrypted credentials, a test command and an AuthKit adapter.",
+    "description": "SMS sending for Symfony with a provider registry (Twilio, SMS Bridge, log, null), runtime configuration stored in instance settings with encrypted credentials, a test command, a send-test admin action and an AuthKit adapter.",
     "type": "symfony-bundle",
     "keywords": [
         "symfony",
@@ -8,8 +8,10 @@
         "bundle",
         "sms",
         "twilio",
+        "sms-bridge",
         "notifications",
         "2fa",
+        "otp",
         "messaging",
         "nowo",
         "frankenphp"
@@ -36,15 +38,126 @@
     },
     "require": {
         "php": ">=8.2 <8.6",
+        "nowo-tech/form-kit-bundle": "^2.17",
+        "nowo-tech/instance-settings-bundle": "dev-main as 1.0.0",
+        "nowo-tech/outbound-url-guard-bundle": "^1.3",
+        "nowo-tech/ui-kit-bundle": "^2.17.5",
+        "psr/log": "^2.0 || ^3.0",
         "symfony/config": "^7.4 || ^8.0",
+        "symfony/console": "^7.4 || ^8.0",
         "symfony/dependency-injection": "^7.4 || ^8.0",
-        "symfony/http-kernel": "^7.4 || ^8.0"
+        "symfony/event-dispatcher": "^7.4 || ^8.0",
+        "symfony/form": "^7.4 || ^8.0",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/http-client": "^7.4 || ^8.0",
+        "symfony/http-client-contracts": "^3.5",
+        "symfony/http-foundation": "^7.4 || ^8.0",
+        "symfony/http-kernel": "^7.4 || ^8.0",
+        "symfony/rate-limiter": "^7.4 || ^8.0",
+        "symfony/routing": "^7.4 || ^8.0",
+        "symfony/security-core": "^7.4 || ^8.0",
+        "symfony/security-csrf": "^7.4 || ^8.0",
+        "symfony/service-contracts": "^3.5",
+        "symfony/translation-contracts": "^3.5",
+        "symfony/validator": "^7.4 || ^8.0"
     },
+    "require-dev": {
+        "doctrine/dbal": "^3.8 || ^4.0",
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "igor-php/igor-php": "^0.10.1",
+        "nowo-tech/auth-kit-bundle": "^1.31",
+        "nowo-tech/phpstan-frankenphp": "^1.0",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "phpunit/phpunit": "^11.5",
+        "rector/rector": "^2.0",
+        "symfony/browser-kit": "^7.4 || ^8.0",
+        "symfony/css-selector": "^7.4 || ^8.0",
+        "symfony/dom-crawler": "^7.4 || ^8.0",
+        "symfony/phpunit-bridge": "^7.4 || ^8.0",
+        "symfony/security-bundle": "^7.4 || ^8.0",
+        "symfony/translation": "^7.4 || ^8.0",
+        "symfony/yaml": "^7.4 || ^8.0"
+    },
+    "suggest": {
+        "nowo-tech/auth-kit-bundle": "Send AuthKit password-reset codes by SMS (nowo_sms_kit.auth_kit.password_reset.enabled)",
+        "symfony/flex": "For automatic recipe installation",
+        "symfony/security-bundle": "Required by the instance settings admin UI that hosts the send-test action"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/nowo-tech/InstanceSettingsBundle"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "Nowo\\SmsKitBundle\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Nowo\\SmsKitBundle\\Tests\\": "tests/"
+        }
+    },
+    "archive": {
+        "exclude": [
+            "/demo",
+            "/.cursor"
+        ]
+    },
+    "extra": {
+        "symfony": {
+            "bundle": "Nowo\\SmsKitBundle\\NowoSmsKitBundle"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        },
+        "platform": {
+            "php": "8.2.0"
+        }
+    },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "scripts": {
+        "test": "phpunit --color=always",
+        "test-coverage": "phpunit --color=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text",
+        "test-coverage-100": [
+            "@test-coverage",
+            "php .scripts/check-coverage.php coverage.xml --min-percent=100"
+        ],
+        "validate-phpdoc": "php .scripts/complete-public-phpdoc.php",
+        "cs-check": "php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix",
+        "rector": "rector process",
+        "rector-dry": "rector process --dry-run --no-progress-bar",
+        "phpstan": "phpstan analyse --memory-limit=512M",
+        "update": "composer update --no-interaction",
+        "validate": "composer validate --strict",
+        "qa": [
+            "@cs-check",
+            "@test"
+        ],
+        "igor": "igor-php --no-agent ."
+    },
+    "scripts-descriptions": {
+        "test": "Run PHPUnit tests",
+        "test-coverage": "Run PHPUnit tests with code coverage",
+        "test-coverage-100": "Run test-coverage and fail if statement or element coverage is below 100% (REQ-TEST-003)",
+        "validate-phpdoc": "Fail when a class or public method in src/ has no PHPDoc (REQ-CS-001)",
+        "cs-check": "Check code style with PHP-CS-Fixer",
+        "cs-fix": "Fix code style with PHP-CS-Fixer",
+        "rector": "Apply Rector refactoring",
+        "rector-dry": "Run Rector in dry-run mode",
+        "phpstan": "Run PHPStan static analysis",
+        "update": "Update composer.lock (composer update)",
+        "validate": "Validate composer.json (composer validate --strict)",
+        "qa": "Run all quality assurance checks",
+        "igor": "Run Igor FrankenPHP worker-state audit (REQ-CS-008)"
+    }
 }

@@ -1,0 +1,38 @@
+# Nowo SMS Kit — the provider and its credentials are chosen at runtime in the "sms" instance settings section
+# (/admin/settings/sections/sms). The values below are fallbacks used while the section stores nothing.
+# Reference: https://github.com/nowo-tech/SmsKitBundle/blob/main/docs/CONFIGURATION.md
+nowo_sms_kit:
+    # null (disabled), log, twilio, sms_bridge or a host provider name.
+    default_provider: '%env(SMS_PROVIDER)%'
+    # sender: '%env(default::SMS_SENDER)%'
+
+    http:
+        timeout: 5.0
+        max_duration: 15.0
+        # Self-hosted SMS Bridge on a private network:
+        # allow_private_endpoints: true
+        # require_https: false
+        allow_private_endpoints: false
+        require_https: true
+
+    # providers:
+    #     twilio:
+    #         account_sid: '%env(default::TWILIO_ACCOUNT_SID)%'
+    #         auth_token: '%env(default::TWILIO_AUTH_TOKEN)%'
+    #         messaging_service_sid: '%env(default::TWILIO_MESSAGING_SERVICE_SID)%'
+    #     sms_bridge:
+    #         base_url: '%env(default::SMS_BRIDGE_BASE_URL)%'
+    #         api_mode: twilio
+    #         account_sid: '%env(default::SMS_BRIDGE_ACCOUNT_SID)%'
+    #         auth_token: '%env(default::SMS_BRIDGE_AUTH_TOKEN)%'
+
+    test_action:
+        enabled: true
+        rate_limit:
+            limit: 5
+            interval: '15 minutes'
+
+    # auth_kit:
+    #     password_reset:
+    #         enabled: true
+    #         phone_property: phone

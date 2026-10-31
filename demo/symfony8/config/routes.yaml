@@ -1,0 +1,11 @@
+controllers:
+    resource: ../src/Controller/
+    type: attribute
+
+nowo_instance_settings:
+    resource: .
+    type: nowo_instance_settings
+
+nowo_sms_kit:
+    resource: .
+    type: nowo_sms_kit
