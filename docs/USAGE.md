@@ -13,6 +13,7 @@
 - [Send-test action](#send-test-action)
 - [Command line](#command-line)
 - [AuthKit password-reset adapter](#authkit-password-reset-adapter)
+- [Long-running processes](#long-running-processes)
 - [Logging](#logging)
 - [Forms and templates](#forms-and-templates)
 - [Translations](#translations)
@@ -47,7 +48,7 @@ final class OneTimeCodeNotifier
 }
 ```
 
-`SmsMessage` arguments: `to` (E.164), `body`, and optional `from` (sender override), `deviceId` (SMS Bridge device), `clientMessageId` (idempotency id, SMS Bridge) and `statusCallbackUrl` (delivery callback, Twilio and SMS Bridge). The provider and its configuration are resolved on every call: what an admin saves applies to the next message.
+`SmsMessage` arguments: `to` (E.164), `body`, and optional `from` (sender override), `deviceId` (SMS Bridge device, 1–64 letters, digits, dashes), `clientMessageId` (idempotency id, 1–128 letters, digits, `.`, `_`, `:`, `-`) and `statusCallbackUrl` (delivery callback, Twilio and SMS Bridge: a public `https://` URL checked by the outbound URL guard). Never take `statusCallbackUrl`, `deviceId` or `clientMessageId` from end-user input: the provider calls the callback URL. The provider and its configuration are resolved on every call: what an admin saves applies to the next message.
 
 ### Phone numbers and senders
 
@@ -55,10 +56,11 @@ final class OneTimeCodeNotifier
 - The sender is the message `from`, else the `sms.sender` setting, else `nowo_sms_kit.sender`: an E.164 number or an alphanumeric sender id (1–11 letters, digits or spaces with at least one letter). Twilio without any sender uses the Messaging Service SID.
 - Why a strict syntax check instead of libphonenumber or `nowo-tech/phone-input-bundle`: the provider is the authority on whether a number is reachable, PhoneInput is a form widget bundle (Form / Twig / UX runtime dependencies) and libphonenumber adds a large dataset for no delivery guarantee. Validate numbers when users **enter** them (PhoneInput's `PhoneType` does that) and send the stored E.164 value.
 - Bodies are trimmed, must not be empty and are limited to 1600 characters (`ConfiguredSmsSender::MAX_BODY_LENGTH`, the Twilio concatenation limit).
+- Every destination goes through the [destination policy](CONFIGURATION.md#destinations): premium / satellite / international-network prefixes are refused by default (`+882…` included), `allowed_country_codes` narrows to your countries, optional per-destination and global budgets.
 
 ### Errors
 
-Every failure is a `Nowo\SmsKitBundle\Exception\SmsSendException` (invalid number or sender: its subclass `InvalidPhoneNumberException`): provider not configured, null provider, endpoint refused by the outbound URL guard, timeout / transport error, provider rejection (`Twilio rejected the message (HTTP 400): …`). Messages never contain credentials and mask phone numbers and SIDs.
+Every failure is a `Nowo\SmsKitBundle\Exception\SmsSendException` (invalid number or sender: `InvalidPhoneNumberException`; destination policy or budget: `DestinationNotAllowedException`): provider not configured, null provider, endpoint refused by the outbound URL guard, timeout / transport error, response too large, provider rejection (`Twilio rejected the message (HTTP 400).`). The **message** is written by the bundle and safe to show to an operator; what the provider or the transport said is in `getDetail()` (masked, truncated to 120 characters) and must only be logged — the sender logs it on the `sms` channel.
 
 ## Choosing the provider at runtime
 
@@ -81,7 +83,7 @@ The Nowo SMS Bridge server sends through paired Android / iOS phones. Two API su
 - `twilio` (default) — the Twilio-compatible Messages API of the bridge (`/2010-04-01/Accounts/{AC…}/Messages.json`), HTTP Basic with the bridge Account SID and the client key (`smscli_…`), plus the bridge extensions `DeviceId` and `ClientMessageId`;
 - `native` — `POST /api/v1/sms` with `Authorization: Bearer smscli_…` and a JSON body (`to`, `body`, `from`, `deviceId`, `clientMessageId`).
 
-A bridge on the LAN or in Docker needs `http.allow_private_endpoints: true` (and `http.require_https: false` for plain HTTP, `http.resolve_dns: false` for a Docker service name). The device id falls back to the server choice when empty.
+A bridge on the LAN or in Docker needs `http.allow_private_endpoints: true` (and `http.require_https: false` for plain HTTP). Keep `http.resolve_dns: true`: Docker service names resolve through Docker's DNS and the answer is checked (metadata refused) and pinned. `resolve_dns: false` skips that check for every hostname (a name pointing at cloud metadata would be accepted) and logs a warning on every send when private endpoints are allowed. The device id falls back to the server choice when empty.
 
 ### Log and null
 
@@ -133,7 +135,7 @@ With `test_action.enabled` (default), the `sms` section page shows **Send a test
 2. validates the CSRF token (`nowo_sms_kit_send_test`) — 403 otherwise;
 3. consumes the rate limiter (`test_action.rate_limit`, per user, or per client IP when anonymous);
 4. sends `test_sms.body` to the saved **test recipient** through the active provider;
-5. redirects (303) to the section page with a flash message (`Test SMS sent to +15*******23 via log (status: logged).`, or the masked failure reason).
+5. redirects (303) to the section page with a flash message (`Test SMS sent to +15*******23 via log (status: logged).`, or the bundle-written reason plus a **reference**; the provider / transport detail is logged with that reference, never flashed).
 
 Import the route with the `nowo_sms_kit` loader ([INSTALLATION](INSTALLATION.md#manual-setup-without-flex)); it is never mounted by `routing.controllers`.
 
@@ -156,9 +158,13 @@ nowo_sms_kit:
             phone_property: phone      # User::getPhone(), User::phone() or public $phone (E.164)
 ```
 
-`SmsPasswordResetNotifier` decorates AuthKit's `PasswordResetNotifierInterface` alias: AuthKit calls it, it calls your notifier (the e-mail one) and then, when the delivery mode includes a **code** (`nowo_auth_kit` `password_reset.delivery_mode: code` or `both`), sends `auth_kit.password_reset.sms_body` (`%code%`) in the recipient locale to the number stored on the account (AuthKit 1.31+ hands the resolved account to notifiers; the typed identifier is never used). Nothing is sent without a configured provider or a valid number on the account; a failed SMS is logged and never breaks the reset response. Replace the property lookup with `phone_resolver: App\Sms\AccountPhoneResolver` (implements `PhoneNumberResolverInterface`).
+`SmsPasswordResetNotifier` decorates AuthKit's `PasswordResetNotifierInterface` alias: AuthKit calls it, it calls your notifier (the e-mail one) and then, when the delivery mode includes a **code** (`nowo_auth_kit` `password_reset.delivery_mode: code` or `both`), builds `auth_kit.password_reset.sms_body` (`%code%`) in the recipient locale for the number stored on the account (AuthKit 1.31+ hands the resolved account to notifiers; the typed identifier is never used) and hands it to the configured delivery: **`deferred`** (default, sent after the response on `kernel.terminate`), `messenger` (a `SendSmsMessage` for an async transport) or `sync`. Nothing is sent without a configured provider or a valid number on the account; any failure (\Throwable) of the SMS part is logged without the code and never changes the reset response. Make sure the phone was verified before you let it receive reset codes. Replace the property lookup with `phone_resolver: App\Sms\AccountPhoneResolver` (implements `PhoneNumberResolverInterface`).
 
 Hosts that only want to know whether SMS is available (to offer the OTP option) call `SmsSenderInterface::isConfigured()`.
+
+## Long-running processes
+
+Inside HTTP the configuration is rebuilt for every main request; Messenger workers reset it between messages (`kernel.reset`). A custom long-running CLI daemon keeps the configuration it read first until `kernel.reset`: call `SmsConfigResolver::reset()` periodically (or run it as a Messenger worker) so a provider or token change made by another process applies.
 
 ## Logging
 

@@ -78,7 +78,7 @@ and the reset flow continues.
 - **FR-DI-001** — `NowoSmsKitBundle` registers the extension `nowo_sms_kit`, the outbound-guard fallback pass and the send-test guard pass.
 - **FR-DI-002** — `Configuration` validates every key strictly with safe defaults (provider `null`, HTTPS, private endpoints off, 5 s / 15 s timeouts, rate limit 5 / 15 minutes, AuthKit off); security switches must be literal booleans.
 - **FR-DI-003** — `NowoSmsKitExtension` registers providers (tag priorities 100/90/80/70), registry, HTTP client, resolver (`kernel.reset`, `SettingsChangedEvent` listener), sender (public alias), section (InstanceSettings tag), command, route loader, and — when enabled — the controller (not autoconfigured), the rate limiter and the AuthKit decorator.
-- **FR-DI-004** — `TestActionPass` refuses to compile the send-test action without form CSRF or without the InstanceSettings access checker.
+- **FR-DI-004** — `TestActionPass` refuses to compile the send-test action without form CSRF.
 - **FR-DI-005** — `OutboundUrlGuardPass` registers a default `OutboundUrlGuard` when the guard bundle is not registered.
 
 ### Sender and messages
@@ -99,7 +99,18 @@ and the reset flow continues.
 
 - **FR-HTTP-001** — `ProviderHttpClient`: endpoint checks (absolute, HTTPS unless allowed, no user info / query / fragment), outbound URL guard + DNS pin, forced `timeout` / `max_duration` / `max_redirects: 0`, transport errors mapped, non-2xx mapped with masked truncated detail.
 - **FR-HTTP-002** — `HttpPolicy` carries the `http.*` configuration.
+- **FR-HTTP-003** — Responses larger than `http.max_response_bytes` (Content-Length or streamed) abort the transfer (`ResponseTooLargeException`); provider / transport texts go to `SmsSendException::getDetail()` (logs only), never to messages.
 - **FR-RED-001** — `E164` (normalize, isValid, mask), `SenderId` (normalize, isNumber), `Redactor` (numbers, SIDs, client keys).
+
+### Destination policy
+
+- **FR-POL-001** — `DestinationPolicy`: default denied premium / satellite / international-network prefixes, optional `allowed_country_codes`, optional per-destination and global budgets; applied to every send (`DestinationNotAllowedException`).
+
+### Deliveries (AuthKit)
+
+- **FR-DEL-001** — `SmsDeliveryInterface` and `SafeSender` (send if configured, every \Throwable logged, never thrown).
+- **FR-DEL-002** — `DeferredSmsDelivery` (default: queue, sent on `kernel.terminate` / `console.terminate`, leftovers on `kernel.reset`) and `SyncSmsDelivery`.
+- **FR-DEL-003** — `MessengerSmsDelivery`, `SendSmsMessage`, `SendSmsMessageHandler` (`delivery: messenger`).
 
 ### Settings
 
@@ -115,7 +126,7 @@ and the reset flow continues.
 
 ### AuthKit
 
-- **FR-AUTH-001** — `SmsPasswordResetNotifier` decorates AuthKit's notifier; code to the stored phone; failures logged.
+- **FR-AUTH-001** — `SmsPasswordResetNotifier` decorates AuthKit's notifier; code to the stored phone through the configured delivery (deferred by default); every \Throwable logged without the code.
 - **FR-AUTH-002** — `PhoneNumberResolverInterface` / `PropertyPhoneNumberResolver` (getter, method or public property, E.164 only).
 
 ### i18n
@@ -133,7 +144,7 @@ and the reset flow continues.
 
 - **SC-001** — PHPUnit green on PHP 8.2–8.5 × Symfony 7.4 / 8.1; statement and element coverage of `src/` 100%, no exclusions.
 - **SC-002** — PHPStan level 8 with the FrankenPHP classic + worker rulesets, Igor, Rector dry-run, PHP-CS-Fixer clean.
-- **SC-003** — The code inventory maps **39/39** production files under `src/` (32 PHP, 7 translation catalogues).
+- **SC-003** — The code inventory maps **49/49** production files under `src/` (42 PHP, 7 translation catalogues).
 - **SC-004** — Demo boots (HTTP 200) and the Playwright e2e sends a test SMS through the log provider.
 - **SC-005** — No log record, flash or exception produced by the bundle contains a full phone number, a body or a credential (tests assert it on the sender, the log provider, the HTTP client and the action).
 

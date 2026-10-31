@@ -54,7 +54,8 @@ The sections below state **behavior**; this subsection states **intent** in back
 - The `sms` instance settings section, the effective configuration (`SmsConfig`, `SmsConfigResolver`, `SmsFallbacks`) and its request-bound memo reset by `SettingsChangedEvent`.
 - Guarded provider HTTP (`ProviderHttpClient`, `HttpPolicy`): outbound URL guard, HTTPS, timeouts, no redirects, error masking; redaction helpers (`E164::mask()`, `Redactor`).
 - `nowo:sms:send`, the send-test admin action (controller, opt-in route loader, rate limiter, fail-closed compile checks).
-- AuthKit password-reset adapter (`SmsPasswordResetNotifier`, `PhoneNumberResolverInterface`, `PropertyPhoneNumberResolver`).
+- Destination / cost policy (`DestinationPolicy`) applied to every send.
+- AuthKit password-reset adapter (`SmsPasswordResetNotifier`, `PhoneNumberResolverInterface`, `PropertyPhoneNumberResolver`) and its deliveries (deferred, Messenger, sync).
 - Documented integration (see root `README.md` and `docs/`), configuration and runtime behaviour in [`CONFIGURATION.md`](CONFIGURATION.md) and [`USAGE.md`](USAGE.md), consumer-facing notes in [`CHANGELOG.md`](CHANGELOG.md) / [`UPGRADING.md`](UPGRADING.md).
 
 **Explicit non-goals**

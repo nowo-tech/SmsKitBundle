@@ -9,8 +9,12 @@ use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotificationContext;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenResult;
+use Nowo\SmsKitBundle\AuthKit\PhoneNumberResolverInterface;
 use Nowo\SmsKitBundle\AuthKit\PropertyPhoneNumberResolver;
 use Nowo\SmsKitBundle\AuthKit\SmsPasswordResetNotifier;
+use Nowo\SmsKitBundle\Delivery\SafeSender;
+use Nowo\SmsKitBundle\Delivery\SyncSmsDelivery;
+use Nowo\SmsKitBundle\Exception\SmsSendException;
 use Nowo\SmsKitBundle\Provider\SmsProviderRegistry;
 use Nowo\SmsKitBundle\Sender\ConfiguredSmsSender;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
@@ -20,9 +24,12 @@ use Nowo\SmsKitBundle\Tests\Support\Numbers;
 use Nowo\SmsKitBundle\Tests\Support\RecordingLogger;
 use Nowo\SmsKitBundle\Tests\Support\StubProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use stdClass;
 use Symfony\Component\Translation\Loader\ArrayLoader;
 use Symfony\Component\Translation\Translator;
+
+use function json_encode;
 
 final class SmsPasswordResetNotifierTest extends TestCase
 {
@@ -30,11 +37,12 @@ final class SmsPasswordResetNotifierTest extends TestCase
 
     private RecordingLogger $logger;
 
-    private function notifier(?PasswordResetNotifierInterface $inner = null, bool $configured = true, ?string $failWith = null, bool $translator = true): SmsPasswordResetNotifier
+    private function notifier(?PasswordResetNotifierInterface $inner = null, bool $configured = true, ?string $failWith = null, bool $translator = true, ?PhoneNumberResolverInterface $phones = null): SmsPasswordResetNotifier
     {
         $this->provider = new StubProvider(configured: $configured, failWith: $failWith);
         $this->logger   = new RecordingLogger();
         $sender         = new ConfiguredSmsSender(new SmsProviderRegistry([$this->provider]), new SmsConfigResolver(new FakeInstanceSettings(['sms.provider' => 'stub']), new SmsFallbacks()));
+        $delivery       = new SyncSmsDelivery(new SafeSender($sender, $this->logger));
 
         $trans = null;
         if ($translator) {
@@ -44,7 +52,7 @@ final class SmsPasswordResetNotifierTest extends TestCase
             $trans->addResource('array', ['auth_kit.password_reset.sms_body' => 'Código %code%'], 'es', 'NowoSmsKitBundle');
         }
 
-        return new SmsPasswordResetNotifier($inner, $sender, new PropertyPhoneNumberResolver(), $trans, $this->logger);
+        return new SmsPasswordResetNotifier($inner, $delivery, $phones ?? new PropertyPhoneNumberResolver(), $trans, $this->logger);
     }
 
     private function user(?string $phone = Numbers::TO): stdClass
@@ -108,7 +116,22 @@ final class SmsPasswordResetNotifierTest extends TestCase
     {
         $this->notifier(failWith: 'Provider down')->notify($this->token(PasswordResetDeliveryMode::Code), $this->context());
 
-        self::assertSame('Password-reset code SMS not sent.', $this->logger->records[0]['message']);
-        self::assertSame('stub', $this->logger->records[0]['context']['provider']);
+        self::assertSame('Deferred SMS not sent.', $this->logger->records[0]['message']);
+        self::assertSame(SmsSendException::class, $this->logger->records[0]['context']['exception_class']);
+    }
+
+    public function testAnyThrowableIsSwallowedWithoutTheCode(): void
+    {
+        $phones = new class implements PhoneNumberResolverInterface {
+            public function resolve(object $user): ?string
+            {
+                throw new RuntimeException('database down');
+            }
+        };
+        $this->notifier(phones: $phones)->notify(self::token(PasswordResetDeliveryMode::Code), self::context());
+
+        self::assertSame('Password-reset code SMS not scheduled.', $this->logger->records[0]['message']);
+        self::assertSame(RuntimeException::class, $this->logger->records[0]['context']['exception_class']);
+        self::assertStringNotContainsString('123456', (string) json_encode($this->logger->records));
     }
 }

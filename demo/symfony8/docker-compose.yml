@@ -8,7 +8,8 @@ services:
     working_dir: /app
     restart: unless-stopped
     ports:
-      - "${PORT:-8086}:80"
+      # Local only: the demo opens the settings UI without login (allow_unauthenticated, debug only).
+      - "127.0.0.1:${PORT:-8086}:80"
     volumes:
       - .:/app
       - ../..:/var/sms-kit-bundle

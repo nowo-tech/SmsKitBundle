@@ -9,43 +9,47 @@ use Nowo\OutboundUrlGuardBundle\Guard\OutboundUrlGuard;
 use Nowo\SmsKitBundle\Exception\SmsSendException;
 use Nowo\SmsKitBundle\Log\Redactor;
 use Nowo\SmsKitBundle\Message\SmsSendResult;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use SensitiveParameter;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 use function is_array;
 use function is_scalar;
-use function json_encode;
+use function is_string;
+use function json_decode;
 use function mb_substr;
 use function parse_url;
 use function rtrim;
 use function sprintf;
+use function strlen;
+use function strpbrk;
 use function strtolower;
 use function trim;
-
-use const JSON_UNESCAPED_SLASHES;
 
 /**
  * The only way providers talk HTTP: every endpoint goes through the outbound URL guard (HTTPS required by default,
  * no credentials in the URL, private ranges refused unless allowed, DNS pinned), every request has an idle timeout,
- * a total duration cap and no redirects, and transport / provider errors become {@see SmsSendException} with phone
- * numbers and identifiers masked.
+ * a total duration cap, a response size cap and no redirects, and transport / provider errors become
+ * {@see SmsSendException} with a bundle-written message (the masked provider / transport detail is kept for logs only).
  */
 final readonly class ProviderHttpClient
 {
-    /** Longest provider error detail kept in an exception message. */
-    private const MAX_DETAIL = 200;
+    /** Longest provider / transport detail kept for logs. */
+    private const MAX_DETAIL = 120;
 
     /**
      * @param HttpClientInterface $httpClient Symfony HttpClient
      * @param OutboundUrlGuard $guard outbound URL policy (nowo-tech/outbound-url-guard-bundle)
      * @param HttpPolicy $policy timeouts and endpoint policy
+     * @param LoggerInterface $logger PSR-3 logger (configuration warnings)
      */
     public function __construct(
         private HttpClientInterface $httpClient,
         private OutboundUrlGuard $guard,
         private HttpPolicy $policy,
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -64,33 +68,48 @@ final readonly class ProviderHttpClient
     {
         $this->assertEndpoint($url, $label);
 
+        if (!$this->policy->resolveDns && $this->policy->allowPrivateEndpoints) {
+            // Hostnames are then neither resolved nor checked: a name pointing at cloud metadata is not detected.
+            $this->logger->warning('SMS provider endpoint checked without DNS resolution while private endpoints are allowed (nowo_sms_kit.http.resolve_dns: false): hostnames are not checked against cloud metadata.', ['provider' => $label]);
+        }
+
         try {
             $pin = $this->guard->httpClientOptions($url, $this->policy->allowPrivateEndpoints, $this->policy->resolveDns);
         } catch (UnsafeOutboundUrlException) {
             throw new SmsSendException(sprintf('%s endpoint URL is refused by the outbound URL guard (private, metadata or invalid address).', $label));
         }
 
+        $cap     = $this->policy->maxResponseBytes;
         $options = [
             ...$options,
             ...$pin,
             'timeout'       => $this->policy->timeout,
             'max_duration'  => $this->policy->maxDuration,
             'max_redirects' => 0,
+            // L3: abort as soon as the announced or received body exceeds the cap (never buffer an unbounded reply).
+            'on_progress' => static function (int $downloaded, int $total) use ($cap): void {
+                if ($downloaded > $cap || $total > $cap) {
+                    throw new ResponseTooLargeException(sprintf('Response body larger than %d bytes.', $cap));
+                }
+            },
         ];
 
         try {
             $response = $this->httpClient->request('POST', $url, $options);
             $status   = $response->getStatusCode();
-            try {
-                $payload = $response->toArray(false);
-            } catch (DecodingExceptionInterface) {
-                $payload = [];
-            }
+            $content  = $response->getContent(false);
         } catch (TransportExceptionInterface $e) {
-            throw new SmsSendException(sprintf('%s transport error: %s', $label, Redactor::redact($e->getMessage())), 0, $e);
+            $tooLarge = $e instanceof ResponseTooLargeException || $e->getPrevious() instanceof ResponseTooLargeException;
+
+            throw new SmsSendException($tooLarge ? sprintf('%s response is larger than nowo_sms_kit.http.max_response_bytes (%d).', $label, $cap) : sprintf('%s could not be reached (timeout, connection or TLS error).', $label), $this->detail($e->getMessage()), $e);
+        }
+        if (strlen($content) > $cap) {
+            throw new SmsSendException(sprintf('%s response is larger than nowo_sms_kit.http.max_response_bytes (%d).', $label, $cap));
         }
 
-        return [$status, $payload];
+        $payload = json_decode($content, true, 64);
+
+        return [$status, is_array($payload) ? $this->stringKeys($payload) : []];
     }
 
     /**
@@ -129,7 +148,9 @@ final readonly class ProviderHttpClient
     }
 
     /**
-     * Throws when the status is not 2xx, with the provider error detail (masked, truncated).
+     * Throws when the status is not 2xx. The exception message holds the label and the status only; the provider
+     * error text (string value of the first documented key, masked, truncated) goes to {@see SmsSendException::getDetail()}
+     * for server-side logs, never into the message shown to users.
      *
      * @param int $status HTTP status
      * @param array<string, mixed> $payload decoded body
@@ -144,18 +165,16 @@ final readonly class ProviderHttpClient
             return;
         }
 
-        $detail = '';
+        $detail = null;
         foreach ($detailKeys as $key) {
-            $detail = self::text($payload[$key] ?? null);
-            if ($detail !== '') {
+            $value = $payload[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                $detail = $this->detail($value);
                 break;
             }
         }
-        if ($detail === '') {
-            $detail = $payload === [] ? 'no details' : (string) json_encode($payload, JSON_UNESCAPED_SLASHES);
-        }
 
-        throw new SmsSendException(sprintf('%s rejected the message (HTTP %d): %s', $label, $status, mb_substr(Redactor::redact($detail), 0, self::MAX_DETAIL)));
+        throw new SmsSendException(sprintf('%s rejected the message (HTTP %d).', $label, $status), $detail);
     }
 
     /**
@@ -169,6 +188,37 @@ final readonly class ProviderHttpClient
         $text = is_scalar($value) ? trim((string) $value) : '';
 
         return $text === '' ? $default : $text;
+    }
+
+    /**
+     * Whether a credential can travel in a header (no CR, LF or NUL): a token that cannot is treated as not configured.
+     *
+     * @param string $value credential
+     */
+    public static function isHeaderSafe(#[SensitiveParameter] string $value): bool
+    {
+        return strpbrk($value, "\r\n\0") === false;
+    }
+
+    /** Masked, single-line, truncated detail for logs. */
+    private function detail(string $text): string
+    {
+        return mb_substr(Redactor::redact($text), 0, self::MAX_DETAIL);
+    }
+
+    /**
+     * @param array<mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private function stringKeys(array $payload): array
+    {
+        $out = [];
+        foreach ($payload as $key => $value) {
+            $out[(string) $key] = $value;
+        }
+
+        return $out;
     }
 
     /** HTTPS (unless allowed otherwise) and no user info, query or fragment in the endpoint. */

@@ -35,6 +35,7 @@ final class SmsBridgeProviderTest extends TestCase
         self::assertFalse($provider->isConfigured($this->config('native', key: 'not-a-client-key')));
         self::assertFalse($provider->isConfigured($this->config(url: null)));
         self::assertFalse($provider->isConfigured($this->config(key: ' ')));
+        self::assertFalse($provider->isConfigured($this->config('native', key: Numbers::bridgeKey() . "\r\nX-Injected: 1")), 'CR / LF in a key');
     }
 
     public function testTwilioCompatibleMode(): void
@@ -78,9 +79,13 @@ final class SmsBridgeProviderTest extends TestCase
     {
         $provider = new SmsBridgeProvider($this->http([self::json(['error' => 'No online device'], 503)]));
 
-        $this->expectException(SmsSendException::class);
-        $this->expectExceptionMessage('SMS Bridge rejected the message (HTTP 503): No online device');
-        $provider->send(new SmsMessage(Numbers::TO, 'hello'), $this->config('native'));
+        try {
+            $provider->send(new SmsMessage(Numbers::TO, 'hello'), $this->config('native'));
+            self::fail('Expected a rejection.');
+        } catch (SmsSendException $e) {
+            self::assertSame('SMS Bridge rejected the message (HTTP 503).', $e->getMessage());
+            self::assertSame('No online device', $e->getDetail());
+        }
     }
 
     public function testRefusesWhenNotConfigured(): void

@@ -101,6 +101,11 @@ final class ConfiguredSmsSenderTest extends TestCase
             [new SmsMessage(Numbers::TO, str_repeat('a', 1601)), 'longer than 1600'],
             [new SmsMessage('555-0100', 'hi'), 'E.164'],
             [new SmsMessage(Numbers::TO, 'hi', 'Bad sender!'), 'alphanumeric sender id'],
+            [new SmsMessage('+88234567890', 'hi'), 'denied range'],
+            [new SmsMessage(Numbers::TO, 'hi', deviceId: "dev\n1"), 'device id'],
+            [new SmsMessage(Numbers::TO, 'hi', clientMessageId: 'a b'), 'client message id'],
+            [new SmsMessage(Numbers::TO, 'hi', statusCallbackUrl: 'http://app.example.test/cb'), 'public https'],
+            [new SmsMessage(Numbers::TO, 'hi', statusCallbackUrl: 'https://127.0.0.1/cb'), 'public https'],
         ] as [$message, $error]) {
             try {
                 $sender->send($message);
@@ -109,7 +114,7 @@ final class ConfiguredSmsSenderTest extends TestCase
                 self::assertStringContainsString($error, $e->getMessage());
             }
         }
-        self::assertCount(4, $this->logger->records);
+        self::assertCount(9, $this->logger->records);
         self::assertSame('SMS not sent.', $this->logger->records[0]['message']);
     }
 
@@ -124,5 +129,26 @@ final class ConfiguredSmsSenderTest extends TestCase
             self::assertNotInstanceOf(InvalidPhoneNumberException::class, $e);
         }
         self::assertSame('Invalid To +15*******23', $this->logger->records[0]['context']['error']);
+    }
+
+    public function testValidOverridesPass(): void
+    {
+        $stub   = new StubProvider();
+        $sender = $this->sender(['sms.provider' => 'stub'], [$stub]);
+
+        $sender->send(new SmsMessage(Numbers::TO, 'hi', null, 'device-1', 'ticket:42', 'https://app.example.test/sms/status'));
+        $sender->send(new SmsMessage(Numbers::TO, 'hi', null, '', '', ''));
+
+        self::assertSame(['device-1', 'ticket:42'], [$stub->sent[0]->deviceId, $stub->sent[0]->clientMessageId]);
+        self::assertCount(2, $stub->sent);
+    }
+
+    public function testTheProviderDetailIsLoggedNotShown(): void
+    {
+        $this->sender(['sms.provider' => 'stub'], [new StubProvider()]);
+        $e = new SmsSendException('Acme rejected the message (HTTP 400).', 'internal detail');
+
+        self::assertSame('internal detail', $e->getDetail());
+        self::assertNull((new SmsSendException('x'))->getDetail());
     }
 }

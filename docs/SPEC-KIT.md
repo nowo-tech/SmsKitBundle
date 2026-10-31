@@ -206,7 +206,7 @@ find src -type f | wc -l
 
 The **Total production sources** row in `code-inventory.md` must match this count.
 
-In **SmsKitBundle**, the baseline inventory covers **39/39** files under `src/` (32 PHP classes + 7 translation catalogues) — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
+In **SmsKitBundle**, the baseline inventory covers **49/49** files under `src/` (42 PHP classes + 7 translation catalogues) — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
 
 ---
 

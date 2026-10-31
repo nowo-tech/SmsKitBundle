@@ -42,12 +42,12 @@ providers, the providers' own services (Twilio, SMS Bridge), or what callers put
 
 | Threat | Mitigation |
 | --- | --- |
-| **SSRF through a provider URL** (an admin or an import points `bridge_base_url` at an internal service or cloud metadata) | `nowo-tech/outbound-url-guard-bundle` on every request: private / loopback ranges refused unless `http.allow_private_endpoints` is true, cloud metadata always refused, hostnames resolved and the checked address pinned (`resolve`, no DNS rebinding), IDN / `%`-encoded hosts refused; `max_redirects: 0`; HTTPS required by default (`http.require_https`); URLs with user info, query or fragment refused. Tests cover loopback, metadata, plain http, credentials and query strings. |
+| **SSRF through a provider URL** (an admin or an import points `bridge_base_url` at an internal service or cloud metadata) | `nowo-tech/outbound-url-guard-bundle` on every request: private / loopback ranges refused unless `http.allow_private_endpoints` is true; with `http.resolve_dns: true` (default) every hostname is resolved, checked (cloud metadata refused, also when private endpoints are allowed) and the checked address pinned (`resolve`, no DNS rebinding); metadata literals and well-known metadata names are always refused. **With `resolve_dns: false` hostnames are not checked**: a name resolving to metadata is accepted — keep it on (Docker service names resolve too); the bundle logs a warning on every send when `resolve_dns: false` meets `allow_private_endpoints: true`. Also: IDN / `%`-encoded hosts refused, `max_redirects: 0`, HTTPS required by default, URLs with user info, query or fragment refused, response bodies capped (`http.max_response_bytes`, 64 KiB). Provider texts never reach the UI (see below), so an internal endpoint's answer cannot be read back through the send-test action. Residual: ports are not restricted (port probing of hosts the policy accepts, POST only, rate limited); outbound proxies (`HTTPS_PROXY`) resolve hosts themselves, bypassing the pin — use `NO_PROXY` for provider hosts. |
 | **Credential disclosure** | Auth Tokens and client keys are `SettingField::secret()` values (encrypted at rest by InstanceSettings / DoctrineEncrypt, never rendered back); config fallbacks should be `%env()%`. `SmsConfig` / `SmsFallbacks` mark them `#[SensitiveParameter]` and mask them in `__debugInfo()`. Credentials are sent only in the `Authorization` header (HTTP Basic or Bearer), never in URLs, logs, flashes or exception messages. |
-| **Personal data in logs / UI** (phone numbers, one-time codes) | Logs and flash messages carry masked numbers (`+15*******23`); the body is never logged (the log provider records its length only); provider and transport error texts are passed through `Redactor` (numbers, `AC…` / `MG…` / `SM…` SIDs, `smscli_` keys masked) and truncated to 200 characters. `SmsSendResult::raw` may contain the destination: callers must not log it. |
-| **Abuse of the send-test action** (SMS pumping, cost, spam to a third party) | Private by default (InstanceSettings checker for the `sms` area, `ROLE_ADMIN`), CSRF, POST only, sliding-window rate limit per user (client IP when anonymous), and the recipient is the **saved** test recipient — never request input. |
-| **Unauthorized access / misconfiguration** | The container refuses to compile the action without form CSRF (pattern P2) or without the InstanceSettings access checker; the controller is not autoconfigured, so `routing.controllers` never mounts it (REQ-SF-004 rule 7, integration test); the controller checks access itself, so a custom path outside the settings prefix stays protected. |
-| **Password-reset hijack through SMS** | The AuthKit adapter sends only to the number stored on the resolved account (`context->user` / `token->user`, AuthKit 1.31 contract), never to request input; nothing is sent without a code or a valid E.164 number; failures are logged without the code and do not change the reset response (no enumeration signal). |
+| **Personal data and provider text in logs / UI** (phone numbers, one-time codes, internal responses) | Exception messages are written by the bundle (numbers masked); whatever the provider or the transport said goes to `SmsSendException::getDetail()` only (string value of a documented key, masked by `Redactor`: numbers, `AC…` / `MG…` / `SM…` SIDs, whole `smscli_` keys whatever their separators, text after a CR / LF dropped; truncated to 120 characters) and is logged on the `sms` channel — never flashed, never `json_encode` of a whole payload. The send-test flash shows the bundle reason plus a random reference that points to the log entry. The body is never logged (the log provider records its length only). `SmsSendResult::raw` may contain the destination: callers must not log it. |
+| **SMS pumping, toll fraud, SMS bombing** (anonymous AuthKit resets, test action, application code) | Destination policy on every send (`nowo_sms_kit.destinations`): premium / satellite / international-network prefixes refused by default (`+870`, `+878`, `+881`, `+882`, `+883`, `+888`, `+979`, `+991`, `+808`), optional `allowed_country_codes`, optional per-destination and global budgets (RateLimiter). The send-test action is also private (InstanceSettings checker for the `sms` area, `ROLE_ADMIN`), CSRF-protected, POST only, rate limited per user (client IP when anonymous) and sends only to the **saved** test recipient. Residual: the policy cannot tell a legitimate number from an attacker-registered one — verify phone numbers before they receive reset codes and enable the provider's fraud controls (Twilio Geo Permissions / SMS Pumping Protection). |
+| **Unauthorized access / misconfiguration** | The container refuses to compile the action without form CSRF (pattern P2); the InstanceSettings access checker (always registered) guards it; the controller is not autoconfigured, so `routing.controllers` never mounts it (REQ-SF-004 rule 7, integration test); the controller checks access itself, so a custom path outside the settings prefix stays protected. |
+| **Password-reset hijack / enumeration through SMS** | The AuthKit adapter sends only to the number stored on the resolved account (`context->user` / `token->user`, AuthKit 1.31 contract), never to request input; nothing is sent without a code or a valid E.164 number. Guarantees: the reset **response body** does not change; with the default `delivery: deferred` the send happens after the response (`kernel.terminate`, after `fastcgi_finish_request()` on PHP-FPM / FrankenPHP), so the **response time** does not depend on the provider; any `\Throwable` of the SMS part is caught and logged without the code, so the response **status** does not change either. Residual: a few milliseconds of local work (phone lookup, translation) happen only for accounts with a phone; `delivery: sync` reintroduces the provider latency (tests / authenticated flows only); AuthKit's own `throttled` outcome and per-IP limiter are AuthKit concerns. |
 | **Hanging requests (FrankenPHP worker / FPM pool)** | Every provider request has an idle timeout and a total `max_duration` (defaults 5 s / 15 s); the guard's DNS lookup has its own timeout. See the [timeout hierarchy](CONFIGURATION.md#timeout-hierarchy-req-runtime-001). |
 | **Silent misdelivery** | The null provider is the default; an unknown provider name falls back to null with a warning instead of picking another provider; `isConfigured()` lets callers hide SMS features. |
 | **Cross-request state leaks (FrankenPHP worker)** | Providers and the sender are stateless; the configuration memo is bound to the main request (`WeakReference`) and cleared by `kernel.reset` and `SettingsChangedEvent`. See [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md). |
@@ -73,16 +73,18 @@ InstanceSettings' `allow_unauthenticated` (debug only) and the log provider, so 
 ## Logging
 
 - `info` "SMS sent." — provider, masked destination, provider message id, status.
-- `warning` "SMS not sent." — provider, masked destination, masked error.
-- `warning` unknown provider name; `warning` AuthKit SMS failure (provider only).
+- `warning` "SMS not sent." — provider, masked destination, bundle reason, provider / transport detail (masked, single line, 120 characters).
+- `warning` "Test SMS failed." — the reference shown in the flash, reason, detail.
+- `warning` unknown provider name; `warning` "Password-reset code SMS not scheduled." / "Deferred SMS not sent." (exception class, masked message — never the code).
+- `warning` "… checked without DNS resolution …" when `resolve_dns: false` meets `allow_private_endpoints: true`.
 - `info` from the log provider — masked destination / sender, body length, generated id.
-- Never logged: the body, tokens, client keys, full phone numbers, provider responses. Channel: `sms`.
+- Never logged: the body, tokens, client keys, full phone numbers, whole provider payloads. Channel: `sms`.
 
 ## Resource limits
 
 - One provider request per message, idle timeout + total duration cap, no redirects, no retries (retry and queueing
   belong to the caller, e.g. a Messenger handler with its own retry policy).
-- Body length capped at 1600 characters; the send-test action is rate limited (5 / 15 min per user by default).
+- Body length capped at 1600 characters; provider responses capped at `http.max_response_bytes` (64 KiB); the send-test action is rate limited (5 / 15 min per user by default; use a shared cache pool in a cluster); optional per-destination and global send budgets.
 - No subprocesses of its own (the guard's bounded DNS child process is part of OutboundUrlGuardBundle).
 
 ## CSRF
@@ -111,14 +113,35 @@ and the sender API have no session and no CSRF.
 | No-secret logs | See [Logging](#logging). |
 | Cryptography | Delegated to InstanceSettings / DoctrineEncrypt; TLS for transport. |
 | Permissions / exposure | Opt-in route, InstanceSettings checker for the `sms` area, CSRF, rate limit, fail-closed compile checks. |
-| Limits / DoS | Provider timeouts, no redirects, body cap, rate limit. |
+| Limits / DoS | Provider timeouts, response size cap, no redirects, body cap, destination policy and budgets, rate limit. |
 | SSRF | Outbound URL guard on every request, HTTPS required, private endpoints opt-in. |
-| AI security audit (REQ-SEC-004) | Pending independent audit before the first tag — see below. |
+| AI security audit (REQ-SEC-004) | Appendix BZ: Pass (good) / Low, findings fixed — see below. |
 
 ## AI security audit (REQ-SEC-004)
 
-Not yet audited. The first release (1.0.0) is blocked until an independent AI security audit records a passing grade
-in the monorepo `BUNDLES_SECURITY_ANALYSIS.md`.
+| Field | Value |
+| --- | --- |
+| Audit | Appendix **BZ** of the monorepo `BUNDLES_SECURITY_ANALYSIS.md` |
+| Date / revision | 2026-10-31, `main` `0d0b9ff` (1.0.0 candidate) |
+| Method | Independent AI static review + PoCs (provider double, fake DNS) |
+| Grade | **Pass (good) — Low**; no Critical / High / Medium |
+
+Findings and their state in this release:
+
+| Id | Finding | State |
+| --- | --- | --- |
+| L1 | AuthKit adapter sent synchronously (timing signal), non-`SmsSendException` throwables broke the reset | Fixed: `delivery: deferred` (default) / `messenger` / `sync`, `\Throwable` caught, wording corrected |
+| L2 | No destination / cost policy | Fixed: `destinations.allowed_country_codes`, default denied premium / satellite prefixes, optional per-destination and global budgets |
+| L3 | Provider response read without a size cap | Fixed: `http.max_response_bytes` (64 KiB), `Content-Length` + `on_progress` abort |
+| L4 | Provider error text (or whole JSON) flashed | Fixed: bundle-written messages, detail in logs only, flash reference |
+| L5 | Docs claimed metadata blocked with `resolve_dns: false` | Fixed: docs corrected, recipe keeps `resolve_dns` on, runtime warning |
+| I1 / I2 | Redactor key charset, `$` anchors | Fixed: whole keys masked, CR / LF cut, `D` modifier |
+| I3 / I4 / I5 / I6 / I10 | Proxies, long-running CLI memo, per-node rate-limit storage, ports, AuthKit-side outcomes | Documented (residual) |
+| I7 | Caller-supplied callback URL / ids | Fixed: public https callback checked by the guard, id formats validated |
+| I8 / I9 | Demo e2e `sharp`, demo port | Fixed: `sharp` 0.35.x, port bound to 127.0.0.1 |
+
+Open residuals: ports not restricted (I6), proxy env bypasses the DNS pin (I3), rate-limit state per node without a
+shared pool (I5), destination policy cannot detect attacker-registered numbers (verify phones), `delivery: sync`.
 
 ## Reporting a vulnerability
 

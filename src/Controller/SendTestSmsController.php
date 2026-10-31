@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\SmsKitBundle\Controller;
 
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
+use Nowo\InstanceSettingsBundle\Routing\InstanceSettingsRoutes;
 use Nowo\InstanceSettingsBundle\Security\InstanceSettingsAccessCheckerInterface;
 use Nowo\SmsKitBundle\Exception\SmsSendException;
 use Nowo\SmsKitBundle\Log\Redactor;
@@ -14,19 +15,24 @@ use Nowo\SmsKitBundle\Phone\E164;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function bin2hex;
 use function hash;
+use function random_bytes;
 use function strtr;
 
 /**
@@ -44,9 +50,6 @@ final readonly class SendTestSmsController
     /** CSRF token id of the action form. */
     public const CSRF_TOKEN_ID = 'nowo_sms_kit_send_test';
 
-    /** Instance settings route of a section page (redirect target). */
-    private const SECTION_ROUTE = 'nowo_instance_settings_section';
-
     /**
      * @param InstanceSettingsAccessCheckerInterface $access instance settings access checker (area `sms`)
      * @param CsrfOnlyFormFactory $csrfForms FormKit CSRF-only form factory
@@ -56,6 +59,7 @@ final readonly class SendTestSmsController
      * @param UrlGeneratorInterface $urls router
      * @param TokenStorageInterface|null $tokens security token storage (null without SecurityBundle)
      * @param TranslatorInterface|null $translator translator of the flash messages
+     * @param LoggerInterface $logger PSR-3 logger (failure detail with the reference shown to the operator)
      */
     public function __construct(
         private InstanceSettingsAccessCheckerInterface $access,
@@ -66,6 +70,7 @@ final readonly class SendTestSmsController
         private UrlGeneratorInterface $urls,
         private ?TokenStorageInterface $tokens = null,
         private ?TranslatorInterface $translator = null,
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -85,7 +90,7 @@ final readonly class SendTestSmsController
             throw new AccessDeniedException('Access denied to the SMS settings.');
         }
 
-        $back = $this->urls->generate(self::SECTION_ROUTE, ['section' => SmsSettingsSection::NAME]);
+        $back = $this->sectionUrl();
         $form = $this->csrfForms->createNamed($this->urls->generate(self::ROUTE), self::CSRF_TOKEN_ID);
         $form->handleRequest($request);
         if (!$form->isSubmitted() || !$form->isValid()) {
@@ -105,7 +110,11 @@ final readonly class SendTestSmsController
         try {
             $result = $this->sender->send(new SmsMessage($recipient, $this->trans('test_sms.body')));
         } catch (SmsSendException $e) {
-            return $this->back($request, $back, 'error', 'flash.test_failed', ['%reason%' => Redactor::redact($e->getMessage())]);
+            // The flash carries the bundle-written reason and a reference only; the provider / transport detail stays in the log.
+            $reference = bin2hex(random_bytes(6));
+            $this->logger->warning('Test SMS failed.', ['reference' => $reference, 'error' => Redactor::redact($e->getMessage()), 'detail' => $e->getDetail()]);
+
+            return $this->back($request, $back, 'error', 'flash.test_failed', ['%reason%' => Redactor::redact($e->getMessage()), '%reference%' => $reference]);
         }
 
         return $this->back($request, $back, 'success', 'flash.test_sent', [
@@ -113,6 +122,16 @@ final readonly class SendTestSmsController
             '%recipient%' => E164::mask($recipient),
             '%status%'    => $result->status,
         ]);
+    }
+
+    /** The `sms` section page, or `/` when the InstanceSettings admin routes are not imported (web UI disabled). */
+    private function sectionUrl(): string
+    {
+        try {
+            return $this->urls->generate(InstanceSettingsRoutes::SECTION, ['section' => SmsSettingsSection::NAME]);
+        } catch (RouteNotFoundException) {
+            return '/';
+        }
     }
 
     /**

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\SmsKitBundle\DependencyInjection;
 
+use Nowo\SmsKitBundle\Policy\DestinationPolicy;
 use Nowo\SmsKitBundle\Settings\SmsConfig;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
+use function array_filter;
+use function is_array;
 use function is_string;
 use function preg_match;
 use function str_starts_with;
@@ -52,6 +55,7 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->append($this->httpNode())
                 ->append($this->providersNode())
+                ->append($this->destinationsNode())
                 ->append($this->testActionNode())
                 ->append($this->authKitNode())
             ->end();
@@ -87,6 +91,11 @@ final class Configuration implements ConfigurationInterface
                 ->booleanNode('require_https')
                     ->info('Refuse plain http:// provider endpoints (credentials travel in every request).')
                     ->defaultTrue()
+                ->end()
+                ->integerNode('max_response_bytes')
+                    ->info('Largest provider response body read; the transfer is aborted beyond it.')
+                    ->defaultValue(65536)
+                    ->min(1024)->max(4194304)
                 ->end()
             ->end()
             ->validate()
@@ -137,6 +146,65 @@ final class Configuration implements ConfigurationInterface
                         ->scalarNode('account_sid')->info('Fallback Account SID (AC…, Twilio-compatible mode).')->defaultNull()->end()
                         ->scalarNode('auth_token')->info('Fallback client key (smscli_…; use an %env()% placeholder).')->defaultNull()->end()
                         ->scalarNode('device_id')->info('Fallback device id (null = the bridge picks a device).')->defaultNull()->end()
+                    ->end()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function destinationsNode(): ArrayNodeDefinition
+    {
+        $digits = static fn (mixed $v): bool => !is_array($v) || array_filter($v, static fn (mixed $c): bool => !is_string($c) || !DestinationPolicy::isDigits($c)) !== [];
+        $node   = (new TreeBuilder('destinations'))->getRootNode();
+        $node
+            ->info('Destination and cost policy of every send (SMS pumping / toll fraud / SMS bombing).')
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->arrayNode('allowed_country_codes')
+                    ->info('Calling codes (digits, e.g. ["34", "1"]) a destination must start with. Empty = every country.')
+                    ->scalarPrototype()->end()
+                    ->defaultValue([])
+                    ->validate()
+                        ->ifTrue($digits)
+                        ->thenInvalid('nowo_sms_kit.destinations.allowed_country_codes must list calling codes as digit strings (1-6 digits), got %s.')
+                    ->end()
+                ->end()
+                ->arrayNode('denied_prefixes')
+                    ->info('Prefixes (digits) always refused: premium, satellite and international-network ranges. Replacing the list replaces the defaults.')
+                    ->scalarPrototype()->end()
+                    ->defaultValue(DestinationPolicy::DEFAULT_DENIED_PREFIXES)
+                    ->validate()
+                        ->ifTrue($digits)
+                        ->thenInvalid('nowo_sms_kit.destinations.denied_prefixes must list prefixes as digit strings (1-6 digits), got %s.')
+                    ->end()
+                ->end()
+                ->arrayNode('rate_limit')
+                    ->info('Optional send budgets (sliding window, state in cache.app). Off unless set.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->append($this->budgetNode('per_destination', 'Messages per destination number and window, e.g. {limit: 3, interval: "1 hour"}.'))
+                        ->append($this->budgetNode('global', 'Messages for the whole instance and window, e.g. {limit: 500, interval: "1 day"}.'))
+                    ->end()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function budgetNode(string $name, string $info): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder($name))->getRootNode();
+        $node
+            ->info($info)
+            ->canBeEnabled()
+            ->children()
+                ->integerNode('limit')->defaultValue(10)->min(1)->max(1000000)->end()
+                ->scalarNode('interval')
+                    ->defaultValue('1 hour')
+                    ->validate()
+                        ->ifTrue(static fn (mixed $v): bool => !is_string($v) || strtotime('+' . $v, 0) === false || strtotime('+' . $v, 0) <= 0)
+                        ->thenInvalid('nowo_sms_kit.destinations.rate_limit.' . $name . '.interval must be a relative time such as "1 hour", got %s.')
                     ->end()
                 ->end()
             ->end();
@@ -204,6 +272,11 @@ final class Configuration implements ConfigurationInterface
                         ->scalarNode('phone_resolver')
                             ->info('Service id of a PhoneNumberResolverInterface replacing the property resolver.')
                             ->defaultNull()
+                        ->end()
+                        ->enumNode('delivery')
+                            ->info('When the code SMS is sent: deferred (after the response, kernel.terminate), messenger (SendSmsMessage, route it to an async transport) or sync (inside the request; the provider latency then shows in the response time).')
+                            ->values(['deferred', 'messenger', 'sync'])
+                            ->defaultValue('deferred')
                         ->end()
                     ->end()
                 ->end()

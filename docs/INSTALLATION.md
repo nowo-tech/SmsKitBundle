@@ -66,7 +66,7 @@ The recipe lives in this repository under [`.symfony/recipe/nowo-tech/sms-kit-bu
 
 ## Instance settings prerequisites
 
-The `sms` section is stored by InstanceSettingsBundle: create its table (Doctrine migration) and the DoctrineEncrypt key once, and import its admin routes — see the InstanceSettings [installation guide](https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/INSTALLATION.md). The send-test action needs the InstanceSettings admin UI (`nowo_instance_settings.web_ui.enabled: true`, the default) for its access checker; the container refuses to compile otherwise (set `nowo_sms_kit.test_action.enabled: false` for API-only installs).
+The `sms` section is stored by InstanceSettingsBundle: create its table (Doctrine migration) and the DoctrineEncrypt key once, and import its admin routes — see the InstanceSettings [installation guide](https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/INSTALLATION.md). The send-test button is rendered on the InstanceSettings section page (`nowo_instance_settings.web_ui.enabled: true`, the default); the action always uses the InstanceSettings access checker, which is registered even with the web UI off. Set `nowo_sms_kit.test_action.enabled: false` for API-only installs.
 
 ## Firewall and access control
 

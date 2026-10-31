@@ -14,6 +14,7 @@ use Nowo\SmsKitBundle\Settings\SmsFallbacks;
 use Nowo\SmsKitBundle\Tests\Support\FakeInstanceSettings;
 use Nowo\SmsKitBundle\Tests\Support\Forms;
 use Nowo\SmsKitBundle\Tests\Support\Numbers;
+use Nowo\SmsKitBundle\Tests\Support\RecordingLogger;
 use Nowo\SmsKitBundle\Tests\Support\StubProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,6 +35,8 @@ use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Symfony\Component\Translation\Loader\ArrayLoader;
 use Symfony\Component\Translation\Translator;
 
+use function strlen;
+
 final class SendTestSmsControllerTest extends TestCase
 {
     private CsrfTokenManager $tokens;
@@ -46,14 +49,16 @@ final class SendTestSmsControllerTest extends TestCase
     /**
      * @param array<string, string> $settings
      */
-    private function controller(array $settings = ['sms.provider' => 'stub', 'sms.test_recipient' => Numbers::TO], bool $allowed = true, ?StubProvider $provider = null, int $limit = 5, bool $user = true, bool $translator = true): SendTestSmsController
+    private function controller(array $settings = ['sms.provider' => 'stub', 'sms.test_recipient' => Numbers::TO], bool $allowed = true, ?StubProvider $provider = null, int $limit = 5, bool $user = true, bool $translator = true, bool $sectionRoute = true, ?RecordingLogger $logger = null): SendTestSmsController
     {
         $this->tokens   = Forms::tokens();
         $this->provider = $provider ?? new StubProvider();
         $resolver       = new SmsConfigResolver(new FakeInstanceSettings($settings), new SmsFallbacks());
         $routes         = new RouteCollection();
         $routes->add(SendTestSmsController::ROUTE, new Route('/admin/settings/sms/test'));
-        $routes->add('nowo_instance_settings_section', new Route('/admin/settings/sections/{section}'));
+        if ($sectionRoute) {
+            $routes->add('nowo_instance_settings_section', new Route('/admin/settings/sections/{section}'));
+        }
 
         $tokenStorage = new TokenStorage();
         if ($user) {
@@ -93,6 +98,7 @@ final class SendTestSmsControllerTest extends TestCase
             new UrlGenerator($routes, new RequestContext()),
             $tokenStorage,
             $trans,
+            $logger ?? new RecordingLogger(),
         );
     }
 
@@ -188,11 +194,15 @@ final class SendTestSmsControllerTest extends TestCase
 
     public function testReportsFailuresRedacted(): void
     {
-        $controller = $this->controller(provider: new StubProvider(failWith: 'Bad number ' . Numbers::TO), translator: false);
+        $logger     = new RecordingLogger();
+        $controller = $this->controller(provider: new StubProvider(failWith: 'Bad number ' . Numbers::TO), translator: false, logger: $logger);
         $request    = $this->request();
         $controller($request);
 
         self::assertSame(['error' => ['flash.test_failed']], $this->flashes($request));
+        self::assertSame('Test SMS failed.', $logger->records[0]['message']);
+        self::assertSame(12, strlen((string) $logger->records[0]['context']['reference']));
+        self::assertSame('Bad number +15*******23', $logger->records[0]['context']['error']);
     }
 
     public function testWorksWithoutSession(): void
@@ -200,5 +210,12 @@ final class SendTestSmsControllerTest extends TestCase
         $controller = $this->controller();
 
         self::assertSame(303, $controller($this->request(session: false))->getStatusCode());
+    }
+
+    public function testRedirectsHomeWithoutTheSettingsRoutes(): void
+    {
+        $controller = $this->controller(sectionRoute: false);
+
+        self::assertSame('/', $controller($this->request())->getTargetUrl());
     }
 }

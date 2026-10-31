@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Nowo\SmsKitBundle\Tests\Unit\Phone;
 
 use Nowo\SmsKitBundle\Exception\InvalidPhoneNumberException;
+use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\Phone\E164;
+use Nowo\SmsKitBundle\Phone\SenderId;
 use Nowo\SmsKitBundle\Tests\Support\Numbers;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+
+use function preg_match;
 
 final class E164Test extends TestCase
 {
@@ -52,5 +56,12 @@ final class E164Test extends TestCase
         self::assertSame('*****', E164::mask('hello'));
         self::assertSame('', E164::mask(null));
         self::assertSame('', E164::mask('  '));
+    }
+
+    public function testPatternsAreAnchoredAtTheVeryEnd(): void
+    {
+        self::assertSame(0, preg_match(E164::PATTERN, Numbers::TO . "\n"));
+        self::assertSame(0, preg_match(SenderId::PATTERN, "Acme\n"));
+        self::assertSame(0, preg_match(SmsMessage::DEVICE_ID_PATTERN, "device\n"));
     }
 }

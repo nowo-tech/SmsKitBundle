@@ -17,10 +17,10 @@ use function trim;
 final class SenderId
 {
     /** Pattern of an alphanumeric sender id. */
-    public const ALPHANUMERIC_PATTERN = '/^(?=.*[A-Za-z])[A-Za-z0-9 ]{1,11}$/';
+    public const ALPHANUMERIC_PATTERN = '/^(?=.*[A-Za-z])[A-Za-z0-9 ]{1,11}$/D';
 
     /** Pattern accepted by the `sms.sender` setting (E.164 or alphanumeric). */
-    public const PATTERN = '/^(\+[1-9]\d{6,14}|(?=.*[A-Za-z])[A-Za-z0-9 ]{1,11})$/';
+    public const PATTERN = '/^(\+[1-9]\d{6,14}|(?=.*[A-Za-z])[A-Za-z0-9 ]{1,11})$/D';
 
     /**
      * Normalizes a sender: E.164 numbers lose their whitespace, alphanumeric ids are trimmed.

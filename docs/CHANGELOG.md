@@ -20,3 +20,19 @@ First release (1.0.0): SMS sending on top of InstanceSettingsBundle.
 - **AuthKit adapter** — `SmsPasswordResetNotifier` (opt-in `auth_kit.password_reset.enabled`) decorates AuthKit's `PasswordResetNotifierInterface` and sends the reset code to the phone stored on the account (`PhoneNumberResolverInterface`, default property `phone`).
 - Translations (`NowoSmsKitBundle`) in en, es, fr, de, it, pt and nl.
 - Flex recipe, Symfony 8.1 FrankenPHP demo with the log provider, Playwright e2e and screenshots, Spec Kit baseline, CI on PHP 8.2–8.5 × Symfony 7.4 / 8.1 with a 100% coverage gate.
+
+### Changed
+
+- Requires `nowo-tech/instance-settings-bundle` **^1.0** (tagged release; no VCS repository): `SmsSettingsSection::getActions()` takes the new `SectionActionContext`, the controller redirects through `InstanceSettingsRoutes::SECTION` (to `/` when the InstanceSettings admin routes are not imported), and the send-test action no longer requires the InstanceSettings web UI (its access checker is always registered).
+
+### Security
+
+- REQ-SEC-004 audit BZ (Pass good / Low) findings fixed before 1.0.0:
+  - AuthKit adapter: the code SMS is sent after the response by default (`auth_kit.password_reset.delivery: deferred`; also `messenger` with `SendSmsMessage` and `sync`), every `\Throwable` of the SMS part is caught and logged without the code (L1).
+  - Destination / cost policy on every send: `destinations.allowed_country_codes`, default denied premium / satellite / international-network prefixes (`+870`, `+878`, `+881`, `+882`, `+883`, `+888`, `+979`, `+991`, `+808`), optional per-destination and global budgets (L2).
+  - Provider responses capped at `http.max_response_bytes` (64 KiB; `Content-Length` and `on_progress` abort) (L3).
+  - Provider / transport texts are no longer part of exception messages or flashes: `SmsSendException::getDetail()` for logs, a reference in the send-test flash (L4).
+  - Docs: `resolve_dns: false` does not check hostnames against metadata; the recipe keeps it on and a warning is logged when it meets `allow_private_endpoints` (L5).
+  - `Redactor` masks whole `smscli_` keys and drops text after CR / LF; credentials with CR / LF are treated as not configured; E.164 / sender / SID / id patterns anchored with `D`; caller `statusCallbackUrl` (public https, outbound URL guard), `deviceId` and `clientMessageId` validated (I1, I2, I7).
+  - Demo: e2e `sharp` 0.35.x, port bound to 127.0.0.1 (I8, I9).
+

@@ -12,9 +12,15 @@ use Nowo\SmsKitBundle\AuthKit\PropertyPhoneNumberResolver;
 use Nowo\SmsKitBundle\AuthKit\SmsPasswordResetNotifier;
 use Nowo\SmsKitBundle\Command\SendSmsCommand;
 use Nowo\SmsKitBundle\Controller\SendTestSmsController;
+use Nowo\SmsKitBundle\Delivery\DeferredSmsDelivery;
+use Nowo\SmsKitBundle\Delivery\MessengerSmsDelivery;
+use Nowo\SmsKitBundle\Delivery\SendSmsMessage;
+use Nowo\SmsKitBundle\Delivery\SendSmsMessageHandler;
+use Nowo\SmsKitBundle\Delivery\SyncSmsDelivery;
 use Nowo\SmsKitBundle\DependencyInjection\NowoSmsKitExtension;
 use Nowo\SmsKitBundle\Http\HttpPolicy;
 use Nowo\SmsKitBundle\NowoSmsKitBundle;
+use Nowo\SmsKitBundle\Policy\DestinationPolicy;
 use Nowo\SmsKitBundle\Provider\LogSmsProvider;
 use Nowo\SmsKitBundle\Provider\NullSmsProvider;
 use Nowo\SmsKitBundle\Provider\SmsBridgeProvider;
@@ -60,7 +66,8 @@ final class NowoSmsKitExtensionTest extends TestCase
         self::assertTrue($container->hasDefinition(NowoSmsKitExtension::TEST_RATE_LIMITER));
         self::assertFalse($container->getDefinition(SendTestSmsController::class)->isAutoconfigured());
         self::assertTrue($container->getDefinition(SendTestSmsController::class)->hasTag('controller.service_arguments'));
-        self::assertSame([5.0, 15.0, false, true, true], $container->getDefinition(HttpPolicy::class)->getArguments());
+        self::assertSame([5.0, 15.0, false, true, true, 65536], $container->getDefinition(HttpPolicy::class)->getArguments());
+        self::assertSame([[], DestinationPolicy::DEFAULT_DENIED_PREFIXES, null, null], $container->getDefinition(DestinationPolicy::class)->getArguments());
         self::assertSame('null', $container->getDefinition(SmsFallbacks::class)->getArgument(0));
         self::assertTrue($container->getParameter('nowo_sms_kit.test_action.enabled'));
         self::assertSame('/admin/settings/sms/test', $container->getParameter('nowo_sms_kit.test_action.path'));
@@ -92,6 +99,9 @@ final class NowoSmsKitExtensionTest extends TestCase
         $definition = $container->getDefinition(SmsPasswordResetNotifier::class);
         self::assertSame([PasswordResetNotifierInterface::class, null, 0], $definition->getDecoratedService());
         self::assertSame('.inner', (string) $definition->getArgument(0));
+        self::assertSame(DeferredSmsDelivery::class, (string) $definition->getArgument(1));
+        self::assertTrue($container->getDefinition(DeferredSmsDelivery::class)->hasTag('kernel.reset'));
+        self::assertCount(2, $container->getDefinition(DeferredSmsDelivery::class)->getTag('kernel.event_listener'));
         self::assertSame(PropertyPhoneNumberResolver::class, (string) $container->getAlias(PhoneNumberResolverInterface::class));
         self::assertSame('mobile', $container->getDefinition(PropertyPhoneNumberResolver::class)->getArgument(0));
     }
@@ -108,5 +118,33 @@ final class NowoSmsKitExtensionTest extends TestCase
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('requires nowo-tech/auth-kit-bundle');
         $this->load(['auth_kit' => ['password_reset' => ['enabled' => true]]], new NowoSmsKitExtension('App\\Missing\\NotifierInterface'));
+    }
+
+    public function testAuthKitDeliveryVariants(): void
+    {
+        $sync = self::load(['auth_kit' => ['password_reset' => ['enabled' => true, 'delivery' => 'sync']]]);
+        self::assertSame(SyncSmsDelivery::class, (string) $sync->getDefinition(SmsPasswordResetNotifier::class)->getArgument(1));
+
+        $messenger = self::load(['auth_kit' => ['password_reset' => ['enabled' => true, 'delivery' => 'messenger']]]);
+        self::assertSame(MessengerSmsDelivery::class, (string) $messenger->getDefinition(SmsPasswordResetNotifier::class)->getArgument(1));
+        self::assertSame([['handles' => SendSmsMessage::class]], $messenger->getDefinition(SendSmsMessageHandler::class)->getTag('messenger.message_handler'));
+    }
+
+    public function testMessengerDeliveryNeedsMessenger(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('requires symfony/messenger');
+        self::load(['auth_kit' => ['password_reset' => ['enabled' => true, 'delivery' => 'messenger']]], new NowoSmsKitExtension(messageBusInterface: 'App\\Missing\\BusInterface'));
+    }
+
+    public function testDestinationBudgets(): void
+    {
+        $container = self::load(['destinations' => ['allowed_country_codes' => ['34'], 'rate_limit' => ['per_destination' => ['limit' => 3, 'interval' => '1 hour'], 'global' => ['enabled' => true]]]]);
+        $arguments = $container->getDefinition(DestinationPolicy::class)->getArguments();
+
+        self::assertSame(['34'], $arguments[0]);
+        self::assertSame('nowo_sms_kit.destinations.per_destination_limiter', (string) $arguments[2]);
+        self::assertSame('nowo_sms_kit.destinations.global_limiter', (string) $arguments[3]);
+        self::assertSame(3, $container->getDefinition('nowo_sms_kit.destinations.per_destination_limiter')->getArgument(0)['limit']);
     }
 }

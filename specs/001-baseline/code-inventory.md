@@ -23,6 +23,7 @@
 | `src/Message/SmsSendResult.php` | Sender and messages | FR-SEND-002 |
 | `src/Exception/SmsSendException.php` | Sender and messages | FR-SEND-003 |
 | `src/Exception/InvalidPhoneNumberException.php` | Sender and messages | FR-SEND-003 |
+| `src/Exception/DestinationNotAllowedException.php` | Sender and messages | FR-SEND-003, FR-POL-001 |
 
 ## Providers
 
@@ -41,6 +42,7 @@
 | --- | --- | --- |
 | `src/Http/ProviderHttpClient.php` | HTTP and redaction | FR-HTTP-001 |
 | `src/Http/HttpPolicy.php` | HTTP and redaction | FR-HTTP-002 |
+| `src/Http/ResponseTooLargeException.php` | HTTP and redaction | FR-HTTP-003 |
 | `src/Phone/E164.php` | HTTP and redaction | FR-RED-001 |
 | `src/Phone/SenderId.php` | HTTP and redaction | FR-RED-001 |
 | `src/Log/Redactor.php` | HTTP and redaction | FR-RED-001 |
@@ -70,6 +72,19 @@
 | `src/AuthKit/PhoneNumberResolverInterface.php` | AuthKit | FR-AUTH-002 |
 | `src/AuthKit/PropertyPhoneNumberResolver.php` | AuthKit | FR-AUTH-002 |
 
+## Destination policy and deliveries
+
+| Source path | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `src/Policy/DestinationPolicy.php` | Destination policy | FR-POL-001 |
+| `src/Delivery/SmsDeliveryInterface.php` | Deliveries | FR-DEL-001 |
+| `src/Delivery/SafeSender.php` | Deliveries | FR-DEL-001 |
+| `src/Delivery/SyncSmsDelivery.php` | Deliveries | FR-DEL-002 |
+| `src/Delivery/DeferredSmsDelivery.php` | Deliveries | FR-DEL-002 |
+| `src/Delivery/MessengerSmsDelivery.php` | Deliveries | FR-DEL-003 |
+| `src/Delivery/SendSmsMessage.php` | Deliveries | FR-DEL-003 |
+| `src/Delivery/SendSmsMessageHandler.php` | Deliveries | FR-DEL-003 |
+
 ## Translations
 
 | Source path | Spec section | Requirement IDs |
@@ -87,11 +102,12 @@
 | Category | Files |
 | --- | --- |
 | Bundle and DI | 5 |
-| Sender, messages, exceptions | 6 |
+| Sender, messages, exceptions | 7 |
 | Providers | 6 |
-| HTTP and redaction | 5 |
+| HTTP and redaction | 6 |
 | Settings | 4 |
 | HTTP action and CLI | 3 |
 | AuthKit adapter | 3 |
+| Destination policy and deliveries | 8 |
 | Translations | 7 |
-| **Total production sources** | **39 / 39** (`find src -type f \| wc -l` = 39) |
+| **Total production sources** | **49 / 49** (`find src -type f \| wc -l` = 49) |
