@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-01
+
+Messenger delivery docs + opt-in messenger_failures: rethrow; instance-settings ^1.1, ui-kit ^2.21 See [UPGRADING](UPGRADING.md#to-110).
+
 ### Added
 
 - `auth_kit.password_reset.messenger_failures` (`log` | `rethrow`, default `log`). With `delivery: messenger` and

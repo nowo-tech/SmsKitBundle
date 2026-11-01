@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.1.0](#to-110)
 - [To 1.0.0](#to-100)
   - [Requirements](#requirements)
   - [Enable and configure](#enable-and-configure)
@@ -10,6 +11,14 @@
   - [Breaking changes](#breaking-changes)
 
 ## Unreleased
+
+## To 1.1.0
+
+From **1.0.0**:
+
+```bash
+composer update nowo-tech/sms-kit-bundle
+```
 
 The bundle now requires `nowo-tech/instance-settings-bundle` ^1.1 and `nowo-tech/ui-kit-bundle` ^2.21:
 
