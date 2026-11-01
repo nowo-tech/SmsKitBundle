@@ -5,11 +5,35 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `auth_kit.password_reset.messenger_failures` (`log` | `rethrow`, default `log`). With `delivery: messenger` and
+  `rethrow`, send failures propagate from `SendSmsMessageHandler` with a redacted message, so the Messenger retry
+  strategy and failure transport apply. Refused destinations and invalid numbers are thrown as
+  `UnrecoverableMessageHandlingException` and are never retried. The default is unchanged: failures are logged, not
+  retried.
+
+### Changed
+
+- Requires `nowo-tech/instance-settings-bundle` ^1.1 and `nowo-tech/ui-kit-bundle` ^2.21. The lock resolves
+  InstanceSettings 1.1.0, UiKit 2.21.0 and DoctrineEncrypt 2.10.1.
+
+### Fixed
+
+- Release notes link UPGRADING with an absolute URL. `release.yml` rewrites relative `UPGRADING.md` links to the
+  tagged file.
+
+### Documentation
+
+- CONFIGURATION / USAGE: new "Messenger delivery" section covering routing, the retry policy (`SafeSender` swallows
+  failures, so Messenger never retries by default), the failure transport and idempotency (a redelivery sends a
+  second SMS).
+- CHANGELOG / UPGRADING: removed the release-candidate leftovers and merged the duplicate "To 1.0.0" sections. README
+  coverage figures refreshed.
+
 ## [1.0.0] - 2026-10-31
 
-First release: runtime-configured SMS sender with Twilio, SMS Bridge, log and null providers, encrypted credentials in InstanceSettings, destination policy against toll fraud, guarded provider HTTP, test CLI/action and an AuthKit password-reset SMS adapter. See [UPGRADING](UPGRADING.md#to-100).
-
-First release (1.0.0): SMS sending on top of InstanceSettingsBundle.
+First release: runtime-configured SMS sender with Twilio, SMS Bridge, log and null providers, encrypted credentials in InstanceSettings, destination policy against toll fraud, guarded provider HTTP, test CLI/action and an AuthKit password-reset SMS adapter. See [UPGRADING](https://github.com/nowo-tech/SmsKitBundle/blob/main/docs/UPGRADING.md#to-100).
 
 ### Added
 

@@ -143,7 +143,7 @@ make release-check
 ## Tests and coverage
 
 - Tests: PHPUnit (PHP) — unit tests (providers on a mock HTTP client, outbound URL guard, timeouts, redaction, E.164, sender, section, command, controller, AuthKit adapter, DI) plus kernel integration tests (the `sms` section and the send-test action end to end through the InstanceSettings admin UI with SecurityBundle, CSRF and rate limit, encrypted secrets on SQLite, settings change resetting the sender, opt-in routes, fail-closed configuration); Playwright e2e on the demo
-- PHP: 100% (gate enforced in CI by `composer test-coverage-100`, no exclusions)
+- PHP: 100% (916/916 statements, 1044/1044 elements; gate enforced in CI by `composer test-coverage-100`, no exclusions)
 - TS/JS: N/A
 - Python: N/A
 
