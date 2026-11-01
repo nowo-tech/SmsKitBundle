@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Documentation
+
+- SECURITY.md: with `password_reset.delivery: messenger` the reset code travels in the queued `SendSmsMessage`, and
+  with `messenger_failures: rethrow` also in the failure transport; use an encrypted or short-TTL private transport
+  (or the default `delivery: deferred`).
+
 ## [1.1.0] - 2026-11-01
 
 Messenger delivery docs + opt-in messenger_failures: rethrow; instance-settings ^1.1, ui-kit ^2.21 See [UPGRADING](UPGRADING.md#to-110).
