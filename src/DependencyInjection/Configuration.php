@@ -278,6 +278,11 @@ final class Configuration implements ConfigurationInterface
                             ->values(['deferred', 'messenger', 'sync'])
                             ->defaultValue('deferred')
                         ->end()
+                        ->enumNode('messenger_failures')
+                            ->info('delivery: messenger only. log (default): send failures are logged and swallowed, Messenger never retries and the failure transport is not used. rethrow: provider / transport failures propagate (redacted) so the retry strategy and the failure transport apply; a refused destination or invalid number is unrecoverable (no retry). A retried message may deliver a stale code, and a redelivery sends a second SMS (no idempotency key).')
+                            ->values(['log', 'rethrow'])
+                            ->defaultValue('log')
+                        ->end()
                     ->end()
                 ->end()
             ->end();

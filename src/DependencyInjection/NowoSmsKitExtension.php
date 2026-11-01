@@ -95,7 +95,7 @@ final class NowoSmsKitExtension extends Extension
         $config = $this->processConfiguration(new Configuration(), $configs);
         $this->assertLiteralBooleans($config);
 
-        /* @var array{default_provider: string, sender: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int}, destinations: array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string}}} $config */
+        /* @var array{default_provider: string, sender: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int}, destinations: array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string, messenger_failures: string}}} $config */
         $container->setParameter('nowo_sms_kit.test_action.enabled', $config['test_action']['enabled']);
         $container->setParameter('nowo_sms_kit.test_action.path', $config['test_action']['path']);
 
@@ -279,7 +279,7 @@ final class NowoSmsKitExtension extends Extension
     }
 
     /**
-     * @param array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string} $passwordReset
+     * @param array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string, messenger_failures: string} $passwordReset
      */
     private function registerAuthKit(ContainerBuilder $container, array $passwordReset): void
     {
@@ -312,7 +312,11 @@ final class NowoSmsKitExtension extends Extension
                 new Reference('messenger.default_bus'),
                 new Reference('logger'),
             ]))->addTag('monolog.logger', ['channel' => 'sms']));
-            $container->setDefinition(SendSmsMessageHandler::class, (new Definition(SendSmsMessageHandler::class, [new Reference(SafeSender::class)]))
+            $handlerArguments = [new Reference(SafeSender::class)];
+            if ($passwordReset['messenger_failures'] === 'rethrow') {
+                $handlerArguments[] = new Reference(SmsSenderInterface::class);
+            }
+            $container->setDefinition(SendSmsMessageHandler::class, (new Definition(SendSmsMessageHandler::class, $handlerArguments))
                 ->addTag('messenger.message_handler', ['handles' => SendSmsMessage::class]));
         } elseif ($delivery === SyncSmsDelivery::class) {
             $container->setDefinition(SyncSmsDelivery::class, new Definition(SyncSmsDelivery::class, [new Reference(SafeSender::class)]));

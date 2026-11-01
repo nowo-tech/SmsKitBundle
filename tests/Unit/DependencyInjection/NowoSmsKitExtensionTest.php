@@ -128,6 +128,10 @@ final class NowoSmsKitExtensionTest extends TestCase
         $messenger = self::load(['auth_kit' => ['password_reset' => ['enabled' => true, 'delivery' => 'messenger']]]);
         self::assertSame(MessengerSmsDelivery::class, (string) $messenger->getDefinition(SmsPasswordResetNotifier::class)->getArgument(1));
         self::assertSame([['handles' => SendSmsMessage::class]], $messenger->getDefinition(SendSmsMessageHandler::class)->getTag('messenger.message_handler'));
+        self::assertCount(1, $messenger->getDefinition(SendSmsMessageHandler::class)->getArguments(), 'failures are swallowed by default');
+
+        $rethrow = self::load(['auth_kit' => ['password_reset' => ['enabled' => true, 'delivery' => 'messenger', 'messenger_failures' => 'rethrow']]]);
+        self::assertSame(SmsSenderInterface::class, (string) $rethrow->getDefinition(SendSmsMessageHandler::class)->getArgument(1));
     }
 
     public function testMessengerDeliveryNeedsMessenger(): void

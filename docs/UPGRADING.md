@@ -4,7 +4,6 @@
 
 - [Unreleased](#unreleased)
 - [To 1.0.0](#to-100)
-- [To 1.0.0 (initial release)](#to-100-initial-release)
   - [Requirements](#requirements)
   - [Enable and configure](#enable-and-configure)
   - [Migrating from an in-app SMS service](#migrating-from-an-in-app-sms-service)
@@ -12,17 +11,19 @@
 
 ## Unreleased
 
-## To 1.0.0
-
-From **0.0.0**:
+The bundle now requires `nowo-tech/instance-settings-bundle` ^1.1 and `nowo-tech/ui-kit-bundle` ^2.21:
 
 ```bash
-composer update nowo-tech/sms-kit-bundle
+composer update nowo-tech/sms-kit-bundle nowo-tech/instance-settings-bundle nowo-tech/ui-kit-bundle --with-dependencies
 ```
 
-Nothing yet beyond the initial 1.0.0 content below.
+With `delivery: messenger`, the new `auth_kit.password_reset.messenger_failures: rethrow` (opt-in) lets send failures
+reach the Messenger retry strategy and failure transport. The default `log` keeps the 1.0.0 behaviour. See
+[CONFIGURATION.md](CONFIGURATION.md#messenger-delivery).
 
-## To 1.0.0 (initial release)
+## To 1.0.0
+
+Initial release: there is nothing to upgrade from.
 
 ### Requirements
 

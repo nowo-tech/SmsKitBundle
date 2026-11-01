@@ -10,6 +10,7 @@
 - [destinations](#destinations)
 - [test_action](#test_action)
 - [auth_kit](#auth_kit)
+  - [Messenger delivery](#messenger-delivery)
 - [The sms settings section](#the-sms-settings-section)
 - [Translations](#translations)
 - [Profiles](#profiles)
@@ -64,6 +65,7 @@ nowo_sms_kit:
             phone_property: phone     # user property with the E.164 phone
             phone_resolver: null      # service id of a PhoneNumberResolverInterface
             delivery: deferred        # deferred (after the response) | messenger | sync
+            messenger_failures: log   # delivery: messenger only — log (no retry) | rethrow (Messenger retry + failure transport)
 ```
 
 Unknown keys are rejected. Security switches (`http.allow_private_endpoints`, `http.require_https`, `http.resolve_dns`, `test_action.enabled`, `auth_kit.password_reset.enabled`) must be literal booleans: `%env(bool:…)%` placeholders are refused because they would read as `true` while the container is built.
@@ -162,6 +164,48 @@ Refusals raise `DestinationNotAllowedException` (a `SmsSendException`). Budgets 
 | `password_reset.phone_property` | `phone` | Property read through `get<Property>()`, `<property>()` or the public property of the AuthKit user. |
 | `password_reset.phone_resolver` | `null` | Service id of a `PhoneNumberResolverInterface` when the number lives elsewhere. |
 | `password_reset.delivery` | `deferred` | `deferred`: the code SMS is sent after the response (`kernel.terminate` / `console.terminate`), so the reset response time does not depend on the provider. `messenger`: a `SendSmsMessage` is dispatched (needs `symfony/messenger`; route it to an async transport). `sync`: sent inside the request (timing signal; tests / authenticated flows only). |
+| `password_reset.messenger_failures` | `log` | `delivery: messenger` only. `log`: failures are logged and swallowed. `rethrow`: failures propagate so the Messenger retry strategy and failure transport apply. See [Messenger delivery](#messenger-delivery). |
+
+### Messenger delivery
+
+With `password_reset.delivery: messenger`, `MessengerSmsDelivery` dispatches a `SendSmsMessage` (destination + body,
+which carries the one-time code) on `messenger.default_bus`, and `SendSmsMessageHandler` sends it in the worker. Route
+the message to a private, short-lived async transport:
+
+```yaml
+# config/packages/messenger.yaml
+framework:
+    messenger:
+        transports:
+            sms: '%env(MESSENGER_TRANSPORT_DSN)%'
+        routing:
+            Nowo\SmsKitBundle\Delivery\SendSmsMessage: sms
+```
+
+- **Dispatch failures** (transport down) are logged on the `sms` channel and never change the reset response, whatever
+  `messenger_failures` says.
+- **Retry policy, `messenger_failures: log` (default).** The handler sends through `SafeSender`, which logs and
+  swallows every failure (provider error, refused destination, settings store). The message is acknowledged:
+  Messenger **never retries it** and the **failure transport is not used**. This is deliberate. A reset code is short
+  lived, and a retry minutes later delivers a stale code. The user asks for a new code instead.
+- **Retry policy, `messenger_failures: rethrow` (opt-in).** The handler sends through `SmsSenderInterface` directly.
+  - A provider or transport failure is thrown again as `SmsSendException` with a redacted message (the original
+    exception is not chained). The transport's `retry_strategy` (`max_retries`, `delay`, `multiplier`) applies, and once
+    the retries are exhausted the message goes to the `failure_transport` if one is configured.
+  - A refused destination (country / prefix policy, exhausted send budget) or an invalid number is thrown as
+    `UnrecoverableMessageHandlingException`. It is not retried and goes straight to the failure transport.
+  - An unconfigured provider is skipped silently, the same as in `log` mode.
+
+  Keep `max_retries` and `delay` small. Retries consume the send budgets of
+  [destinations](#destinations).
+- **Failure transport.** It is only used with `rethrow`. A failed `SendSmsMessage` stores the destination and the
+  one-time code in clear, so prefer no failure transport for this message, or a private one that you purge quickly. Do
+  not replay old reset codes with `messenger:failed:retry`.
+- **Idempotency.** The message has no idempotency key, and the providers are not idempotent. A redelivery sends a
+  second SMS. This happens when a worker crashes after the provider accepted the message but before the ack, or when a
+  `rethrow` retry follows a timeout that the provider actually delivered. The user then gets the same code twice: this
+  is harmless for a reset code, but it counts against the budgets. Hosts that dispatch their own `SendSmsMessage` for
+  other texts need their own deduplication, for example a `DeduplicateStamp` with `symfony/lock` on Symfony 7.3+.
 
 ## The sms settings section
 

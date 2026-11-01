@@ -40,7 +40,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame('twilio', $config['providers']['sms_bridge']['api_mode']);
         self::assertTrue($config['providers']['log']['enabled']);
         self::assertSame(['enabled' => true, 'path' => '/admin/settings/sms/test', 'rate_limit' => ['limit' => 5, 'interval' => '15 minutes']], $config['test_action']);
-        self::assertSame(['enabled' => false, 'phone_property' => 'phone', 'phone_resolver' => null, 'delivery' => 'deferred'], $config['auth_kit']['password_reset']);
+        self::assertSame(['enabled' => false, 'phone_property' => 'phone', 'phone_resolver' => null, 'delivery' => 'deferred', 'messenger_failures' => 'log'], $config['auth_kit']['password_reset']);
     }
 
     public function testAcceptsAnEnvPlaceholderAsDefaultProvider(): void
@@ -74,6 +74,7 @@ final class ConfigurationTest extends TestCase
         yield 'budget interval' => [['destinations' => ['rate_limit' => ['global' => ['interval' => 'soon']]]], 'rate_limit.global.interval'];
         yield 'budget interval type' => [['destinations' => ['rate_limit' => ['per_destination' => ['interval' => 3]]]], 'rate_limit.per_destination.interval'];
         yield 'delivery' => [['auth_kit' => ['password_reset' => ['delivery' => 'later']]], 'delivery'];
+        yield 'messenger_failures' => [['auth_kit' => ['password_reset' => ['messenger_failures' => 'retry']]], 'messenger_failures'];
     }
 
     /**

@@ -1283,6 +1283,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * @psalm-type NowoDoctrineEncryptConfig = array{
  *     connections?: Param|string|list<scalar|Param|null>,
  *     default_profile?: scalar|Param|null, // Profile name to use when #[Encrypted] has no alias or uses "default". // Default: "default"
+ *     on_decrypt_failure?: "keep"|"null"|"throw"|Param, // What an #[Encrypted] property gets when its stored value cannot be decrypted (wrong or rotated key, corrupted ciphertext): "keep" = the raw ciphertext (2.x default, callers may take it for the secret), "null" = null (recommended; the stored ciphertext is written back unchanged on flush), "throw" = DecryptionFailedException (recommended). A warning is logged for "keep" and "null". // Default: "keep"
+ *     generate_missing_key?: bool|Param|null, // Whether the Halite / Defuse encryptors may create a missing key file on first use. null (default) = only when kernel.debug is true; outside debug a missing key file is an error (a wrong path or a lost volume would otherwise encrypt new data with a throwaway key). Create keys explicitly with doctrine:encrypt:generate-secret-key. // Default: null
  *     batch_size?: int|Param, // Default batch size for doctrine:decrypt:database and doctrine:encrypt:database (raw SQL). Overridable per run via the batchSize argument. // Default: 5
  *     secret_permissions?: array{ // Filesystem hardening for file-based keys: creates missing key directories with directory_mode and chmods key files to file_mode (console: every command; HTTP: at most once per http_check_interval seconds per worker).
  *         enabled?: bool|Param, // Default: true
@@ -1319,6 +1321,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             path?: scalar|Param|null,
  *             testid?: scalar|Param|null, // Default: null
  *         }>,
+ *     },
+ *     font_preload?: array{ // 2.21: <link rel="preload" as="font" crossorigin> tags printed in the <head> of the document and error layouts (Twig nowo_ui_font_preload()) for the fonts painted above the fold. Empty = no tags.
+ *         fonts?: list<scalar|Param|null>,
+ *         manifest?: array{ // Hashed builds: pick the fonts from a Vite manifest (.vite/manifest.json). A missing manifest (dev server) prints nothing.
+ *             path?: scalar|Param|null, // Absolute path of the manifest, e.g. "%kernel.project_dir%/public/build/.vite/manifest.json"; null = off. // Default: null
+ *             entry?: scalar|Param|null, // Manifest entry whose "assets" list holds the fonts. // Default: "assets/app.js"
+ *             prefixes?: list<scalar|Param|null>,
+ *             base?: scalar|Param|null, // Public URL prefix of the manifest assets. // Default: "/build/"
+ *         },
  *     },
  *     appearance?: array{ // Optional site appearance SPI (presets, --nowo-ui-* token emitter, Twig functions). Off by default.
  *         enabled?: bool|Param, // Default: false
@@ -1609,6 +1620,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         allow_private_endpoints?: bool|Param, // Allow loopback / private-network endpoints (self-hosted SMS Bridge on the LAN or a Docker network). Cloud metadata addresses stay blocked. // Default: false
  *         resolve_dns?: bool|Param, // Resolve the endpoint host and pin the checked address (DNS rebinding protection). Disable only for Docker service names. // Default: true
  *         require_https?: bool|Param, // Refuse plain http:// provider endpoints (credentials travel in every request). // Default: true
+ *         max_response_bytes?: int|Param, // Largest provider response body read; the transfer is aborted beyond it. // Default: 65536
  *     },
  *     providers?: array{ // Bundled providers. Credentials here are fallbacks used while the "sms" section stores nothing (prefer %env(...)% placeholders).
  *         log?: array{
@@ -1630,6 +1642,22 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             device_id?: scalar|Param|null, // Fallback device id (null = the bridge picks a device). // Default: null
  *         },
  *     },
+ *     destinations?: array{ // Destination and cost policy of every send (SMS pumping / toll fraud / SMS bombing).
+ *         allowed_country_codes?: list<scalar|Param|null>,
+ *         denied_prefixes?: list<scalar|Param|null>,
+ *         rate_limit?: array{ // Optional send budgets (sliding window, state in cache.app). Off unless set.
+ *             per_destination?: bool|array{ // Messages per destination number and window, e.g. {limit: 3, interval: "1 hour"}.
+ *                 enabled?: bool|Param, // Default: false
+ *                 limit?: int|Param, // Default: 10
+ *                 interval?: scalar|Param|null, // Default: "1 hour"
+ *             },
+ *             global?: bool|array{ // Messages for the whole instance and window, e.g. {limit: 500, interval: "1 day"}.
+ *                 enabled?: bool|Param, // Default: false
+ *                 limit?: int|Param, // Default: 10
+ *                 interval?: scalar|Param|null, // Default: "1 hour"
+ *             },
+ *         },
+ *     },
  *     test_action?: array{ // "Send a test SMS" button of the "sms" settings section (POST + CSRF, instance settings access checker, rate limit).
  *         enabled?: bool|Param, // Default: true
  *         path?: scalar|Param|null, // Path of the POST route (import the "nowo_sms_kit" route loader). Keep it under the instance settings admin prefix so the firewall rule covers it. // Default: "/admin/settings/sms/test"
@@ -1643,6 +1671,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             enabled?: bool|Param, // Decorate AuthKit's PasswordResetNotifierInterface: the reset code also goes by SMS to the account phone (delivery modes code / both). // Default: false
  *             phone_property?: scalar|Param|null, // User property holding the E.164 phone (read through get<Property>(), <property>() or the public property). // Default: "phone"
  *             phone_resolver?: scalar|Param|null, // Service id of a PhoneNumberResolverInterface replacing the property resolver. // Default: null
+ *             delivery?: "deferred"|"messenger"|"sync"|Param, // When the code SMS is sent: deferred (after the response, kernel.terminate), messenger (SendSmsMessage, route it to an async transport) or sync (inside the request; the provider latency then shows in the response time). // Default: "deferred"
+ *             messenger_failures?: "log"|"rethrow"|Param, // delivery: messenger only. log (default): send failures are logged and swallowed, Messenger never retries and the failure transport is not used. rethrow: provider / transport failures propagate (redacted) so the retry strategy and the failure transport apply; a refused destination or invalid number is unrecoverable (no retry). A retried message may deliver a stale code, and a redelivery sends a second SMS (no idempotency key). // Default: "log"
  *         },
  *     },
  * }
