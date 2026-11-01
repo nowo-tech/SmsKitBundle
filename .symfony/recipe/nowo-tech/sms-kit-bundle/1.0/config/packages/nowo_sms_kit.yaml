@@ -47,3 +47,4 @@ nowo_sms_kit:
     #         enabled: true
     #         phone_property: phone
     #         delivery: deferred      # sent after the response; messenger for an async transport
+    #         messenger_failures: log # messenger only: log (no retry) | rethrow (Messenger retry + failure transport)

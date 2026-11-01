@@ -11,14 +11,19 @@ use Nowo\SmsKitBundle\Delivery\SafeSender;
 use Nowo\SmsKitBundle\Delivery\SendSmsMessage;
 use Nowo\SmsKitBundle\Delivery\SendSmsMessageHandler;
 use Nowo\SmsKitBundle\Delivery\SyncSmsDelivery;
+use Nowo\SmsKitBundle\Exception\DestinationNotAllowedException;
+use Nowo\SmsKitBundle\Exception\InvalidPhoneNumberException;
+use Nowo\SmsKitBundle\Exception\SmsSendException;
 use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\Message\SmsSendResult;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
 use Nowo\SmsKitBundle\Tests\Support\Numbers;
 use Nowo\SmsKitBundle\Tests\Support\RecordingLogger;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Throwable;
 
@@ -28,6 +33,8 @@ final class DeliveryTest extends TestCase
 
     /** @var ArrayObject<int, SmsMessage> */
     private ArrayObject $sent;
+
+    private SmsSenderInterface $stub;
 
     private function safe(bool $configured = true, ?Throwable $failure = null): SafeSender
     {
@@ -61,6 +68,8 @@ final class DeliveryTest extends TestCase
                 return 'stub';
             }
         };
+
+        $this->stub = $sender;
 
         return new SafeSender($sender, $this->logger);
     }
@@ -130,5 +139,52 @@ final class DeliveryTest extends TestCase
         $bus->fail = true;
         (new MessengerSmsDelivery($bus, $logger))->deliver(new SmsMessage(Numbers::TO, 'lost'));
         self::assertSame(RuntimeException::class, $logger->records[0]['context']['exception_class']);
+    }
+
+    public function testHandlerSwallowsFailuresByDefault(): void
+    {
+        (new SendSmsMessageHandler($this->safe(true, new RuntimeException('provider down'))))(new SendSmsMessage(Numbers::TO, 'code'));
+
+        self::assertCount(1, $this->logger->records, 'logged, not thrown: Messenger does not retry');
+    }
+
+    public function testHandlerRethrowsWhenFailuresPropagate(): void
+    {
+        $safe = $this->safe();
+        (new SendSmsMessageHandler($safe, $this->stub))(new SendSmsMessage(Numbers::TO, 'code'));
+        self::assertCount(1, $this->sent);
+
+        $safe = $this->safe(false);
+        (new SendSmsMessageHandler($safe, $this->stub))(new SendSmsMessage(Numbers::TO, 'code'));
+        self::assertCount(0, $this->sent, 'an unconfigured provider is skipped, not retried');
+
+        $safe = $this->safe(true, new RuntimeException('Bad ' . Numbers::TO));
+        try {
+            (new SendSmsMessageHandler($safe, $this->stub))(new SendSmsMessage(Numbers::TO, 'code'));
+            self::fail('expected a retryable failure');
+        } catch (SmsSendException $e) {
+            self::assertSame('SMS not sent (RuntimeException): Bad +15*******23', $e->getMessage());
+            self::assertNull($e->getPrevious(), 'the unredacted provider text is not chained');
+        }
+        self::assertSame([], $this->logger->records);
+    }
+
+    /**
+     * @return iterable<string, array{SmsSendException}>
+     */
+    public static function unrecoverableFailures(): iterable
+    {
+        yield 'refused destination' => [new DestinationNotAllowedException('Send budget for ' . Numbers::TO . ' exhausted.')];
+        yield 'invalid number' => [new InvalidPhoneNumberException('Invalid number.')];
+    }
+
+    #[DataProvider('unrecoverableFailures')]
+    public function testHandlerRefusalsAreUnrecoverable(SmsSendException $failure): void
+    {
+        $safe = $this->safe(true, $failure);
+
+        $this->expectException(UnrecoverableMessageHandlingException::class);
+        $this->expectExceptionMessage('SMS not sent (' . $failure::class . ')');
+        (new SendSmsMessageHandler($safe, $this->stub))(new SendSmsMessage(Numbers::TO, 'code'));
     }
 }

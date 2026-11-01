@@ -13,6 +13,7 @@
 - [Send-test action](#send-test-action)
 - [Command line](#command-line)
 - [AuthKit password-reset adapter](#authkit-password-reset-adapter)
+  - [Messenger delivery](#messenger-delivery)
 - [Long-running processes](#long-running-processes)
 - [Logging](#logging)
 - [Forms and templates](#forms-and-templates)
@@ -161,6 +162,29 @@ nowo_sms_kit:
 `SmsPasswordResetNotifier` decorates AuthKit's `PasswordResetNotifierInterface` alias: AuthKit calls it, it calls your notifier (the e-mail one) and then, when the delivery mode includes a **code** (`nowo_auth_kit` `password_reset.delivery_mode: code` or `both`), builds `auth_kit.password_reset.sms_body` (`%code%`) in the recipient locale for the number stored on the account (AuthKit 1.31+ hands the resolved account to notifiers; the typed identifier is never used) and hands it to the configured delivery: **`deferred`** (default, sent after the response on `kernel.terminate`), `messenger` (a `SendSmsMessage` for an async transport) or `sync`. Nothing is sent without a configured provider or a valid number on the account; any failure (\Throwable) of the SMS part is logged without the code and never changes the reset response. Make sure the phone was verified before you let it receive reset codes. Replace the property lookup with `phone_resolver: App\Sms\AccountPhoneResolver` (implements `PhoneNumberResolverInterface`).
 
 Hosts that only want to know whether SMS is available (to offer the OTP option) call `SmsSenderInterface::isConfigured()`.
+
+### Messenger delivery
+
+`delivery: messenger` sends the code from a worker. Route `Nowo\SmsKitBundle\Delivery\SendSmsMessage` to a private
+async transport.
+
+- **Default (`messenger_failures: log`).** A failed send is logged, not retried, and never reaches the failure
+  transport, because a retried reset code would arrive stale.
+- **Opt-in (`messenger_failures: rethrow`).** Provider failures propagate, so the transport's retry strategy and
+  failure transport apply. Refused destinations and invalid numbers are unrecoverable and are never retried.
+- **Idempotency.** There is no idempotency key, so a redelivery sends a second SMS.
+
+```yaml
+nowo_sms_kit:
+    auth_kit:
+        password_reset:
+            enabled: true
+            delivery: messenger
+            messenger_failures: rethrow   # opt-in; default log
+```
+
+The retry policy, the failure transport and the idempotency rules are explained in
+[CONFIGURATION.md](CONFIGURATION.md#messenger-delivery).
 
 ## Long-running processes
 
