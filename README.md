@@ -19,7 +19,7 @@ The provider and its configuration are resolved on every send and memoized for t
 ## Features
 
 - **Provider registry** — `SmsProviderInterface` services are autoconfigured (tag `nowo_sms_kit.provider`) and become the choices of the `sms.provider` setting. Bundled: `twilio`, `sms_bridge` (Twilio-compatible or native API), `log` (writes masked metadata, sends nothing) and `null` (disabled, the default).
-- **Runtime configuration** — the `sms` instance settings section stores the provider, the sender (E.164 number or alphanumeric id), a test recipient and the provider credentials; Auth Tokens and client keys are **encrypted secrets** never rendered back. Empty fields fall back to `nowo_sms_kit.*` configuration (typically `%env()%`).
+- **Runtime configuration** — the `sms` instance settings section stores the provider, the sender (E.164 number or alphanumeric id), a test recipient and the provider credentials; Auth Tokens and client keys are **encrypted secrets** never rendered back. Empty fields fall back to `nowo_sms_kit.*` configuration (typically `%env()%`), or run **DB-only** (no env vars) after seeding them once with `nowo:instance-settings:seed-from-fallbacks`; the page and `SmsConfigStatus` warn when the active provider misses credentials.
 - **One sender API** — `SmsSenderInterface::send(new SmsMessage($to, $body))`, `isConfigured()`, `getProviderId()`; the provider and configuration are resolved per send (worker-safe), with validation of the E.164 destination, the sender and the body (1–1600 characters).
 - **Safe outbound HTTP** — every provider call goes through [OutboundUrlGuardBundle](https://github.com/nowo-tech/OutboundUrlGuardBundle) (HTTPS required, no credentials in URLs, private ranges refused unless allowed, metadata always blocked, DNS pinned), with an idle timeout, a total duration cap and no redirects (REQ-RUNTIME-001).
 - **Destination policy** — premium / satellite / international-network prefixes refused by default, optional allowed country codes and per-destination / global send budgets, applied to every send (SMS pumping and toll-fraud protection).
@@ -143,7 +143,7 @@ make release-check
 ## Tests and coverage
 
 - Tests: PHPUnit (PHP) — unit tests (providers on a mock HTTP client, outbound URL guard, timeouts, redaction, E.164, sender, section, command, controller, AuthKit adapter, DI) plus kernel integration tests (the `sms` section and the send-test action end to end through the InstanceSettings admin UI with SecurityBundle, CSRF and rate limit, encrypted secrets on SQLite, settings change resetting the sender, opt-in routes, fail-closed configuration); Playwright e2e on the demo
-- PHP: 100% (916/916 statements, 1044/1044 elements; gate enforced in CI by `composer test-coverage-100`, no exclusions)
+- PHP: 100% (974/974 statements, 1110/1110 elements; gate enforced in CI by `composer test-coverage-100`, no exclusions)
 - TS/JS: N/A
 - Python: N/A
 

@@ -37,9 +37,11 @@ use Nowo\SmsKitBundle\Routing\SmsKitRouteLoader;
 use Nowo\SmsKitBundle\Sender\ConfiguredSmsSender;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
+use Nowo\SmsKitBundle\Settings\SmsConfigStatus;
 use Nowo\SmsKitBundle\Settings\SmsFallbacks;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
+use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
 use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -184,6 +186,13 @@ final class NowoSmsKitExtension extends Extension
             ->addTag('kernel.reset', ['method' => 'reset'])
             ->addTag('kernel.event_listener', ['event' => SettingsChangedEvent::class, 'method' => 'onSettingsChanged']));
 
+        // Public: host health / status pages read it.
+        $container->setDefinition(SmsConfigStatus::class, (new Definition(SmsConfigStatus::class, [
+            new Reference(SmsConfigResolver::class),
+            new Reference(SmsProviderRegistry::class),
+            new Reference(InstanceSettingsInterface::class),
+        ]))->setPublic(true));
+
         $container->setDefinition(ConfiguredSmsSender::class, (new Definition(ConfiguredSmsSender::class, [
             new Reference(SmsProviderRegistry::class),
             new Reference(SmsConfigResolver::class),
@@ -198,6 +207,8 @@ final class NowoSmsKitExtension extends Extension
             new Reference('router', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             new Reference(CsrfOnlyFormFactory::class, ContainerInterface::NULL_ON_INVALID_REFERENCE),
             $testAction,
+            new Reference(SmsFallbacks::class),
+            new ServiceClosureArgument(new Reference(SmsConfigStatus::class)),
         ]))->addTag(NowoInstanceSettingsBundle::SECTION_TAG));
 
         $container->setDefinition(SendSmsCommand::class, (new Definition(SendSmsCommand::class, [

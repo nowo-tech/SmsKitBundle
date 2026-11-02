@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8ce2ca9964699bc692424f33ecf360d3",
+    "content-hash": "cd87d30c12d930ec7056fd8e5f0d05fd",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -1168,16 +1168,16 @@
         },
         {
             "name": "nowo-tech/instance-settings-bundle",
-            "version": "v1.1.0",
+            "version": "v1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/InstanceSettingsBundle.git",
-                "reference": "1e714d909b05e448b73bd4653caf05d2de559a6d"
+                "reference": "89c4fb60d441f5893b1c12ff1c7439a131b3fecc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/1e714d909b05e448b73bd4653caf05d2de559a6d",
-                "reference": "1e714d909b05e448b73bd4653caf05d2de559a6d",
+                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/89c4fb60d441f5893b1c12ff1c7439a131b3fecc",
+                "reference": "89c4fb60d441f5893b1c12ff1c7439a131b3fecc",
                 "shasum": ""
             },
             "require": {
@@ -1186,7 +1186,7 @@
                 "doctrine/persistence": "^3.1 || ^4.0",
                 "nowo-tech/doctrine-encrypt-bundle": "^2.10",
                 "nowo-tech/form-kit-bundle": "^2.17",
-                "nowo-tech/ui-kit-bundle": "^2.17.3",
+                "nowo-tech/ui-kit-bundle": "^2.21",
                 "php": ">=8.2 <8.6",
                 "psr/clock": "^1.0",
                 "psr/event-dispatcher": "^1.0",
@@ -1292,8 +1292,8 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-31T21:09:50+00:00",
-            "published-time": "2026-10-31T21:12:08+00:00"
+            "time": "2026-11-02T11:05:37+00:00",
+            "published-time": "2026-11-02T11:34:19+00:00"
         },
         {
             "name": "nowo-tech/outbound-url-guard-bundle",

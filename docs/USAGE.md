@@ -9,6 +9,7 @@
   - [Twilio](#twilio)
   - [SMS Bridge](#sms-bridge)
   - [Log and null](#log-and-null)
+- [DB-only mode](#db-only-mode)
 - [Writing a provider](#writing-a-provider)
 - [Send-test action](#send-test-action)
 - [Command line](#command-line)
@@ -90,6 +91,49 @@ A bridge on the LAN or in Docker needs `http.allow_private_endpoints: true` (and
 
 - `log` — always configured; writes one `info` record per message (provider, masked destination and sender, body length, a random `log-…` id) and returns status `logged`. Use it in development and demos.
 - `null` — the default; never configured, every send fails. `isConfigured()` is false, so callers can hide SMS features.
+
+## DB-only mode
+
+Since 1.2 (with `nowo-tech/instance-settings-bundle` ^1.2) an instance can keep the provider, the sender and the
+credentials **only in the database** (the `sms` settings section, tokens encrypted) and set no `SMS_*` / `TWILIO_*`
+environment variable at all:
+
+```yaml
+# config/packages/nowo_sms_kit.yaml — DB-only: no default_provider, sender or providers.* placeholders
+nowo_sms_kit:
+    test_action:
+        enabled: true
+```
+
+Until a provider is chosen in the admin UI, sending is disabled (null provider). `providers.twilio.api_base_url` is not
+a setting: its default (`https://api.twilio.com`) stays in code and can still be overridden in YAML.
+
+**Migrating an instance that used `%env()%` fallbacks**, in this order:
+
+1. Upgrade to SmsKit 1.2 / InstanceSettings 1.2 while the placeholders are still wired (do not apply recipe 1.2 /
+   `composer recipes:update` yet: it removes them).
+2. `php bin/console nowo:instance-settings:seed-from-fallbacks --section=sms --dry-run`, then without `--dry-run`.
+   Every non-empty fallback (`default_provider` unless it is `null`, `sender`, `providers.twilio.*` except
+   `api_base_url`, `providers.sms_bridge.*`; the API mode only with a bridge URL) is copied where the field has no
+   stored value; tokens are stored encrypted; the output lists field names only. It is idempotent.
+3. Only then remove the placeholders and the env vars (or apply recipe 1.2). Seed **once**: a field an admin clears
+   later would be seeded again while the placeholders are still wired.
+
+**No provider chosen yet.** With the DB-only configuration and nothing stored (recipe 1.2 applied before the seed or
+before the first admin save), the effective provider is `null` and the page warns "No SMS provider is chosen yet";
+`SmsConfigStatus::isProviderUnset()` reports the same for health pages. Choosing **Disabled** stores the choice and
+silences it.
+
+**Missing credentials warning.** When the active provider is not `null` but a required field is empty (Twilio: Account
+SID, Auth Token, a sender or Messaging Service SID; SMS Bridge: URL, client key and, in Twilio-compatible mode, the
+Account SID; a host provider: `isConfigured()` false), the `sms` settings page shows a warning naming the fields.
+Health / status pages can read the same check from the public `SmsConfigStatus` service:
+
+```php
+if ($smsStatus->hasMissingFields()) {
+    $checks[] = sprintf('SMS provider "%s" misses: %s', $smsStatus->provider(), implode(', ', $smsStatus->missingFields()));
+}
+```
 
 ## Writing a provider
 

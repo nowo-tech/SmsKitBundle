@@ -90,6 +90,10 @@ nowo_sms_kit:
             device_id: '%env(default::SMS_BRIDGE_DEVICE_ID)%'
 ```
 
+These fallbacks are optional: in **DB-only mode** (1.2+) none of them is set and the `sms` section is the only
+source. To move an instance there, seed them once with `nowo:instance-settings:seed-from-fallbacks --section=sms`
+before removing them; see [USAGE.md](USAGE.md#db-only-mode).
+
 Provider names are case-insensitive; `''`, `none`, `disabled`, `off` and `null` mean the null provider. An unknown name (a host provider that was removed) also falls back to the null provider and logs a warning. Never write a literal token in YAML.
 
 ## http
@@ -251,6 +255,7 @@ Not applicable (REQ-CFG-001): there is one SMS configuration per instance; the r
 | `Nowo\SmsKitBundle\Sender\SmsSenderInterface` (public alias) | the sender |
 | `Nowo\SmsKitBundle\Provider\SmsProviderRegistry` | registered providers |
 | `Nowo\SmsKitBundle\Settings\SmsConfigResolver` | effective configuration (memo, `kernel.reset`) |
+| `Nowo\SmsKitBundle\Settings\SmsConfigStatus` (public, 1.2) | required fields missing for the active provider (health / status pages) |
 | `nowo_sms_kit.send_test.rate_limiter` | rate limiter factory of the send-test action |
 | `nowo_sms_kit.test_action.enabled`, `nowo_sms_kit.test_action.path` | parameters |
 
