@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-02
+
+DB-only SMS settings: the sms section exposes its env / YAML fallbacks to nowo:instance-settings:seed-from-fallbacks, SmsConfigStatus + page notices for missing fields or no provider, Flex recipe 1.2 without env placeholders. Requires InstanceSettings ^1.2. See [UPGRADING](https://github.com/nowo-tech/SmsKitBundle/blob/v1.2.0/docs/UPGRADING.md#to-120).
+
 ### Added
 
 - DB-only mode: `SmsSettingsSection` implements InstanceSettings 1.2 `SectionFallbackProviderInterface` over
