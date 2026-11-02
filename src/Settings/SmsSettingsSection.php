@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Nowo\SmsKitBundle\Settings;
 
+use Closure;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Nowo\InstanceSettingsBundle\Section\AbstractSettingsSection;
 use Nowo\InstanceSettingsBundle\Section\SectionActionContext;
+use Nowo\InstanceSettingsBundle\Section\SectionFallbackProviderInterface;
+use Nowo\InstanceSettingsBundle\Section\SettingFallback;
 use Nowo\InstanceSettingsBundle\Section\SettingField;
 use Nowo\InstanceSettingsBundle\Section\SettingsSectionActionsInterface;
+use Nowo\InstanceSettingsBundle\Section\SettingsSectionNoticesInterface;
 use Nowo\SmsKitBundle\Controller\SendTestSmsController;
 use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\NowoSmsKitBundle;
@@ -19,16 +23,22 @@ use Nowo\SmsKitBundle\Provider\TwilioProvider;
 use Nowo\UiKitBundle\View\Action;
 use Nowo\UiKitBundle\View\Label;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Translation\TranslatableMessage;
 use Symfony\Component\Validator\Constraints\Regex;
+
+use function implode;
+use function trim;
 
 /**
  * The `sms` instance settings section: active provider, sender, test recipient and the credentials of the bundled
  * providers (tokens are encrypted secrets). With the send-test action enabled, the section page also shows a
  * "Send a test SMS" POST button (CSRF form) next to Save.
  *
- * Empty fields fall back to the bundle configuration ({@see SmsFallbacks}).
+ * Empty fields fall back to the bundle configuration ({@see SmsFallbacks}). Since 1.2 the section exposes those
+ * fallbacks to `nowo:instance-settings:seed-from-fallbacks` (DB-only mode) and warns on its page when the active
+ * provider misses required fields ({@see SmsConfigStatus}).
  */
-final class SmsSettingsSection extends AbstractSettingsSection implements SettingsSectionActionsInterface
+final class SmsSettingsSection extends AbstractSettingsSection implements SettingsSectionActionsInterface, SectionFallbackProviderInterface, SettingsSectionNoticesInterface
 {
     /** Section name (key prefix `sms.`, URL segment, export key). */
     public const NAME = 'sms';
@@ -38,12 +48,17 @@ final class SmsSettingsSection extends AbstractSettingsSection implements Settin
      * @param UrlGeneratorInterface|null $urls router (send-test action)
      * @param CsrfOnlyFormFactory|null $csrfForms FormKit CSRF-only form factory (send-test action)
      * @param bool $testAction whether the send-test action is enabled
+     * @param SmsFallbacks|null $fallbacks bundle configuration copied by the seed (null = no fallbacks)
+     * @param (Closure(): SmsConfigStatus)|null $status lazy status of the active provider (page notice); lazy because
+     *                                                  the status reads the settings store this section belongs to
      */
     public function __construct(
         private readonly SmsProviderRegistry $providers,
         private readonly ?UrlGeneratorInterface $urls = null,
         private readonly ?CsrfOnlyFormFactory $csrfForms = null,
         private readonly bool $testAction = false,
+        private readonly ?SmsFallbacks $fallbacks = null,
+        private readonly ?Closure $status = null,
     ) {
     }
 
@@ -127,5 +142,56 @@ final class SmsSettingsSection extends AbstractSettingsSection implements Settin
             variant: 'secondary',
             form: $this->csrfForms->createNamed($url, SendTestSmsController::CSRF_TOKEN_ID)->createView(),
         )];
+    }
+
+    /**
+     * The bundle configuration values (`default_provider`, `sender`, `providers.twilio.*`, `providers.sms_bridge.*`)
+     * for the seed. A disabled default provider (`null`, `none`…) is not a fallback; the Twilio API base URL is not a
+     * setting (it stays in the bundle configuration); the bridge API mode is only seeded with a bridge URL.
+     *
+     * @return iterable<SettingFallback>
+     */
+    public function getFallbacks(): iterable
+    {
+        $f = $this->fallbacks;
+        if (!$f instanceof SmsFallbacks) {
+            return [];
+        }
+
+        $provider = SmsConfigResolver::normalizeProvider($f->defaultProvider);
+
+        return [
+            SettingFallback::plain('provider', $provider === 'null' ? null : $provider),
+            SettingFallback::plain('sender', $f->sender),
+            SettingFallback::plain('twilio_account_sid', $f->twilioAccountSid),
+            SettingFallback::secret('twilio_auth_token', $f->twilioAuthToken),
+            SettingFallback::plain('twilio_messaging_service_sid', $f->twilioMessagingServiceSid),
+            SettingFallback::plain('bridge_base_url', $f->bridgeBaseUrl),
+            SettingFallback::plain('bridge_api_mode', $f->bridgeBaseUrl === null || trim($f->bridgeBaseUrl) === '' ? null : $f->bridgeApiMode),
+            SettingFallback::plain('bridge_account_sid', $f->bridgeAccountSid),
+            SettingFallback::secret('bridge_auth_token', $f->bridgeAuthToken),
+            SettingFallback::plain('bridge_device_id', $f->bridgeDeviceId),
+        ];
+    }
+
+    /**
+     * Warning when the active provider (not `null`) misses required fields; names the fields, never their values.
+     *
+     * @param SectionActionContext $context page being rendered (unused)
+     *
+     * @return iterable<TranslatableMessage>
+     */
+    public function getNotices(SectionActionContext $context): iterable
+    {
+        $status = $this->status instanceof Closure ? ($this->status)() : null;
+        if (!$status instanceof SmsConfigStatus) {
+            return [];
+        }
+        $missing = $status->missingFields();
+        if ($missing === []) {
+            return [];
+        }
+
+        return [new TranslatableMessage('settings.sms.notice_missing', ['%provider%' => $status->provider(), '%fields%' => implode(', ', $missing)], NowoSmsKitBundle::TRANSLATION_DOMAIN)];
     }
 }

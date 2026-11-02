@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- DB-only mode: `SmsSettingsSection` implements InstanceSettings 1.2 `SectionFallbackProviderInterface` over
+  `SmsFallbacks` (`default_provider` unless null, `sender`, `providers.twilio.*` except `api_base_url`,
+  `providers.sms_bridge.*`), so `nowo:instance-settings:seed-from-fallbacks --section=sms` copies them once into the
+  store (tokens encrypted). Flex recipe 1.2 without env placeholders. See [UPGRADING](UPGRADING.md#to-120).
+- `SmsConfigStatus` (public service): required fields missing for the active provider; the `sms` settings page shows
+  a warning naming them (`settings.sms.notice_missing`, 7 locales).
+
+### Changed
+
+- Requires `nowo-tech/instance-settings-bundle` ^1.2 (was ^1.1).
+
 ### Documentation
 
 - SECURITY.md: with `password_reset.delivery: messenger` the reset code travels in the queued `SendSmsMessage`, and

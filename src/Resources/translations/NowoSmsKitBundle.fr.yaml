@@ -27,6 +27,7 @@ settings:
         bridge_device_id: 'Appareil SMS Bridge'
         bridge_device_id_help: 'Identifiant de l''appareil ; laissez vide pour laisser le bridge choisir.'
         send_test: 'Envoyer un SMS de test'
+        notice_missing: 'Il manque des paramètres obligatoires au fournisseur actif « %provider% » : %fields%. Aucun message ne peut être envoyé tant qu''ils ne sont pas renseignés.'
 flash:
     test_sent: 'SMS de test envoyé à %recipient% via %provider% (statut : %status%).'
     test_failed: 'Le SMS de test n''a pas pu être envoyé : %reason% (référence %reference%)'

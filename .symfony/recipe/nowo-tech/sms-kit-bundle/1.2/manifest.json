@@ -1,0 +1,13 @@
+{
+    "bundles": {
+        "Nowo\\OutboundUrlGuardBundle\\NowoOutboundUrlGuardBundle": [
+            "all"
+        ],
+        "Nowo\\SmsKitBundle\\NowoSmsKitBundle": [
+            "all"
+        ]
+    },
+    "copy-from-recipe": {
+        "config/": "%CONFIG_DIR%/"
+    }
+}

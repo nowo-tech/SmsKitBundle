@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [To 1.2.0](#to-120)
 - [To 1.1.0](#to-110)
 - [To 1.0.0](#to-100)
   - [Requirements](#requirements)
@@ -11,6 +12,27 @@
   - [Breaking changes](#breaking-changes)
 
 ## Unreleased
+
+### To 1.2.0
+
+From **1.1.x**. The bundle now requires `nowo-tech/instance-settings-bundle` ^1.2:
+
+```bash
+composer update nowo-tech/sms-kit-bundle nowo-tech/instance-settings-bundle --with-dependencies
+```
+
+No configuration change, no BC break: the `%env()%` fallbacks keep working. New:
+
+- The `sms` section exposes its fallbacks to `nowo:instance-settings:seed-from-fallbacks` (DB-only mode).
+- The `sms` settings page warns when the active provider misses required fields; `SmsConfigStatus` (public service)
+  exposes the same check to health / status pages.
+- Flex recipe 1.2 installs a DB-only configuration (no env placeholder, no `SMS_PROVIDER`).
+
+To go DB-only, **in this order**: (1) upgrade while the `%env()%` fallbacks are still wired; (2) run
+`php bin/console nowo:instance-settings:seed-from-fallbacks --section=sms` (try `--dry-run` first); (3) only then remove
+`default_provider` / `sender` / `providers.*` placeholders and the `SMS_*`, `TWILIO_*`, `SMS_BRIDGE_*` env vars. Removing
+them first would seed nothing. From a Doctrine migration, call the seeder from a non-transactional migration (see
+InstanceSettings [USAGE](https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/USAGE.md#calling-the-seeder-from-a-migration)).
 
 ## To 1.1.0
 

@@ -27,6 +27,7 @@ settings:
         bridge_device_id: 'SMS Bridge-apparaat'
         bridge_device_id_help: 'Apparaat-ID; laat leeg om de bridge te laten kiezen.'
         send_test: 'Test-sms versturen'
+        notice_missing: 'De actieve provider "%provider%" mist verplichte instellingen: %fields%. Er kunnen geen berichten worden verzonden totdat ze zijn ingevuld.'
 flash:
     test_sent: 'Test-sms verstuurd naar %recipient% via %provider% (status: %status%).'
     test_failed: 'De test-sms kon niet worden verstuurd: %reason% (referentie %reference%)'

@@ -27,6 +27,7 @@ settings:
         bridge_device_id: 'SMS-Bridge-Gerät'
         bridge_device_id_help: 'Geräte-ID; leer lassen, damit die Bridge wählt.'
         send_test: 'Test-SMS senden'
+        notice_missing: 'Dem aktiven Anbieter "%provider%" fehlen Pflichteinstellungen: %fields%. Nachrichten können erst gesendet werden, wenn sie ausgefüllt sind.'
 flash:
     test_sent: 'Test-SMS an %recipient% über %provider% gesendet (Status: %status%).'
     test_failed: 'Die Test-SMS konnte nicht gesendet werden: %reason% (Referenz %reference%)'

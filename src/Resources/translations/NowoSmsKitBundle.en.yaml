@@ -27,6 +27,7 @@ settings:
         bridge_device_id: 'SMS Bridge device'
         bridge_device_id_help: 'Device id; leave empty to let the bridge choose.'
         send_test: 'Send a test SMS'
+        notice_missing: 'The active provider "%provider%" is missing required settings: %fields%. Messages cannot be sent until they are filled in.'
 flash:
     test_sent: 'Test SMS sent to %recipient% via %provider% (status: %status%).'
     test_failed: 'The test SMS could not be sent: %reason% (reference %reference%)'
