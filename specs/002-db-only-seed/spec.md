@@ -43,7 +43,9 @@ Flex recipe 1.2 configures no env placeholder; sending stays disabled until a pr
   status reads the store the section belongs to).
 - **FR-DBO-003** `SmsConfigStatus` (public): `provider()`, `missingFields()` (Twilio: account SID, auth token, sender
   or messaging service; SMS Bridge: URL, client key, account SID in Twilio-compatible mode; other providers:
-  `['provider']` when not registered or `isConfigured()` is false), `hasMissingFields()`.
+  `['provider']` when not registered or `isConfigured()` is false; an empty sender does not hide the Messaging Service
+  SID), `hasMissingFields()`, `isProviderUnset()` (provider `null` and `sms.provider` not stored → page notice
+  `settings.sms.notice_no_provider`).
 - **FR-DBO-004** Docs: DB-only mode (USAGE), seed order (UPGRADING), recipe 1.2.
 
 ## Success Criteria

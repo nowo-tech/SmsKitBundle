@@ -187,6 +187,9 @@ final class SmsSettingsSection extends AbstractSettingsSection implements Settin
         if (!$status instanceof SmsConfigStatus) {
             return [];
         }
+        if ($status->isProviderUnset()) {
+            return [new TranslatableMessage('settings.sms.notice_no_provider', [], NowoSmsKitBundle::TRANSLATION_DOMAIN)];
+        }
         $missing = $status->missingFields();
         if ($missing === []) {
             return [];

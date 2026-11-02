@@ -57,7 +57,11 @@ final class DbOnlySeedTest extends KernelTestCase
         $client = $this->client($kernel);
 
         $crawler = $client->request('GET', '/admin/settings/sections/sms');
-        self::assertCount(0, $crawler->filter('[data-testid="instance-settings-notice"]'), 'null provider: no warning');
+        self::assertStringContainsString('No SMS provider is chosen yet', $crawler->filter('[data-testid="instance-settings-notice"]')->text(), 'nothing seeded or chosen yet');
+
+        $this->settings($kernel)->save('sms', ['provider' => 'null']);
+        $crawler = $client->request('GET', '/admin/settings/sections/sms');
+        self::assertCount(0, $crawler->filter('[data-testid="instance-settings-notice"]'), 'Disabled chosen explicitly: no warning');
 
         $this->settings($kernel)->save('sms', ['provider' => 'twilio', 'sender' => 'Acme']);
         $crawler = $client->request('GET', '/admin/settings/sections/sms');

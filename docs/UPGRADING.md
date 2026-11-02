@@ -31,7 +31,9 @@ No configuration change, no BC break: the `%env()%` fallbacks keep working. New:
 To go DB-only, **in this order**: (1) upgrade while the `%env()%` fallbacks are still wired; (2) run
 `php bin/console nowo:instance-settings:seed-from-fallbacks --section=sms` (try `--dry-run` first); (3) only then remove
 `default_provider` / `sender` / `providers.*` placeholders and the `SMS_*`, `TWILIO_*`, `SMS_BRIDGE_*` env vars. Removing
-them first would seed nothing. From a Doctrine migration, call the seeder from a non-transactional migration (see
+them first would seed nothing. Run `composer recipes:update nowo-tech/sms-kit-bundle` (recipe 1.2, no env
+placeholders) only **after** the seed: applied before, SMS falls to the `null` provider and the `sms` page shows "No SMS
+provider is chosen yet" (`SmsConfigStatus::isProviderUnset()`). From a Doctrine migration, call the seeder from a non-transactional migration (see
 InstanceSettings [USAGE](https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/USAGE.md#calling-the-seeder-from-a-migration)).
 
 ## To 1.1.0

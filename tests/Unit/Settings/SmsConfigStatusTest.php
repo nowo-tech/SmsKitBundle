@@ -26,8 +26,20 @@ final class SmsConfigStatusTest extends TestCase
         self::assertFalse($status->hasMissingFields());
     }
 
+    public function testProviderUnsetUntilChosen(): void
+    {
+        $registry = new SmsProviderRegistry([new NullSmsProvider()]);
+        $status   = static fn (FakeInstanceSettings $s): SmsConfigStatus => new SmsConfigStatus(new SmsConfigResolver($s, new SmsFallbacks()), $registry, $s);
+
+        self::assertTrue($status(new FakeInstanceSettings())->isProviderUnset());
+        self::assertFalse($status(new FakeInstanceSettings(['sms.provider' => 'null']))->isProviderUnset(), 'Disabled chosen explicitly');
+        self::assertFalse($status(new FakeInstanceSettings(['sms.provider' => 'log']))->isProviderUnset());
+        self::assertFalse($this->configStatus(new SmsFallbacks())->isProviderUnset(), 'without the store: unknown, no warning');
+    }
+
     public function testTwilioRequiredFields(): void
     {
+        self::assertSame([], $this->configStatus(new SmsFallbacks('twilio', '', Numbers::accountSid(), Numbers::token(), Numbers::messagingServiceSid()))->missingFields(), 'an empty sender does not hide the Messaging Service SID');
         self::assertSame(['twilio_account_sid', 'twilio_auth_token', 'sender'], $this->configStatus(new SmsFallbacks('twilio'))->missingFields());
         self::assertSame([], $this->configStatus(new SmsFallbacks('twilio', null, Numbers::accountSid(), Numbers::token(), Numbers::messagingServiceSid()))->missingFields());
         self::assertSame([], $this->configStatus(new SmsFallbacks('twilio', 'Acme', Numbers::accountSid(), Numbers::token()))->missingFields());

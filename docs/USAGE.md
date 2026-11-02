@@ -110,12 +110,19 @@ a setting: its default (`https://api.twilio.com`) stays in code and can still be
 
 **Migrating an instance that used `%env()%` fallbacks**, in this order:
 
-1. Upgrade to SmsKit 1.2 / InstanceSettings 1.2 while the placeholders are still wired.
+1. Upgrade to SmsKit 1.2 / InstanceSettings 1.2 while the placeholders are still wired (do not apply recipe 1.2 /
+   `composer recipes:update` yet: it removes them).
 2. `php bin/console nowo:instance-settings:seed-from-fallbacks --section=sms --dry-run`, then without `--dry-run`.
    Every non-empty fallback (`default_provider` unless it is `null`, `sender`, `providers.twilio.*` except
    `api_base_url`, `providers.sms_bridge.*`; the API mode only with a bridge URL) is copied where the field has no
    stored value; tokens are stored encrypted; the output lists field names only. It is idempotent.
-3. Remove the placeholders and the env vars.
+3. Only then remove the placeholders and the env vars (or apply recipe 1.2). Seed **once**: a field an admin clears
+   later would be seeded again while the placeholders are still wired.
+
+**No provider chosen yet.** With the DB-only configuration and nothing stored (recipe 1.2 applied before the seed or
+before the first admin save), the effective provider is `null` and the page warns "No SMS provider is chosen yet";
+`SmsConfigStatus::isProviderUnset()` reports the same for health pages. Choosing **Disabled** stores the choice and
+silences it.
 
 **Missing credentials warning.** When the active provider is not `null` but a required field is empty (Twilio: Account
 SID, Auth Token, a sender or Messaging Service SID; SMS Bridge: URL, client key and, in Twilio-compatible mode, the

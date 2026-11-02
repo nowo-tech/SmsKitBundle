@@ -190,6 +190,7 @@ final class NowoSmsKitExtension extends Extension
         $container->setDefinition(SmsConfigStatus::class, (new Definition(SmsConfigStatus::class, [
             new Reference(SmsConfigResolver::class),
             new Reference(SmsProviderRegistry::class),
+            new Reference(InstanceSettingsInterface::class),
         ]))->setPublic(true));
 
         $container->setDefinition(ConfiguredSmsSender::class, (new Definition(ConfiguredSmsSender::class, [

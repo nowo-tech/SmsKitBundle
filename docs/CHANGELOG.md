@@ -12,7 +12,8 @@ All notable changes to this project are documented here. The format follows
   `providers.sms_bridge.*`), so `nowo:instance-settings:seed-from-fallbacks --section=sms` copies them once into the
   store (tokens encrypted). Flex recipe 1.2 without env placeholders. See [UPGRADING](UPGRADING.md#to-120).
 - `SmsConfigStatus` (public service): required fields missing for the active provider; the `sms` settings page shows
-  a warning naming them (`settings.sms.notice_missing`, 7 locales).
+  a warning naming them (`settings.sms.notice_missing`, 7 locales), and `isProviderUnset()` / a "no provider chosen
+  yet" warning when nothing is stored and the provider resolves to `null` (`settings.sms.notice_no_provider`).
 
 ### Changed
 

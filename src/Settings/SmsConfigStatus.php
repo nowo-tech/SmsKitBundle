@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\SmsKitBundle\Settings;
 
+use Nowo\InstanceSettingsBundle\Settings\InstanceSettingsInterface;
 use Nowo\SmsKitBundle\Provider\SmsBridgeProvider;
 use Nowo\SmsKitBundle\Provider\SmsProviderRegistry;
 use Nowo\SmsKitBundle\Provider\TwilioProvider;
@@ -20,11 +21,25 @@ final readonly class SmsConfigStatus
     /**
      * @param SmsConfigResolver $resolver effective configuration
      * @param SmsProviderRegistry $providers registered providers
+     * @param InstanceSettingsInterface|null $settings store (detects "no provider chosen yet")
      */
     public function __construct(
         private SmsConfigResolver $resolver,
         private SmsProviderRegistry $providers,
+        private ?InstanceSettingsInterface $settings = null,
     ) {
+    }
+
+    /**
+     * True when sending is off only because nothing chose a provider yet: the effective provider is `null` and the
+     * `sms.provider` setting is not stored (typically recipe 1.2 / DB-only before the seed or the first admin save).
+     * Storing "Disabled" explicitly makes it false.
+     */
+    public function isProviderUnset(): bool
+    {
+        return $this->provider() === 'null'
+            && $this->settings instanceof InstanceSettingsInterface
+            && !$this->settings->isOverridden(SmsSettingsSection::NAME . '.provider');
     }
 
     /**
@@ -51,7 +66,7 @@ final readonly class SmsConfigStatus
             TwilioProvider::NAME => $this->empty([
                 'twilio_account_sid' => $config->twilioAccountSid,
                 'twilio_auth_token'  => $config->twilioAuthToken,
-                'sender'             => $config->sender ?? $config->twilioMessagingServiceSid,
+                'sender'             => trim((string) $config->sender) !== '' ? $config->sender : $config->twilioMessagingServiceSid,
             ]),
             SmsBridgeProvider::NAME => $this->empty([
                 'bridge_base_url'    => $config->bridgeBaseUrl,

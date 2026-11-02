@@ -96,7 +96,7 @@ final class SmsSettingsSectionTest extends TestCase
         $secrets   = [];
         foreach ((new SmsSettingsSection($this->registry(), fallbacks: $fallbacks))->getFallbacks() as $fallback) {
             self::assertInstanceOf(SettingFallback::class, $fallback);
-            $values[$fallback->field] = $fallback->value;
+            $values[$fallback->field] = $fallback->value();
             if ($fallback->secret) {
                 $secrets[] = $fallback->field;
             }
@@ -112,7 +112,7 @@ final class SmsSettingsSectionTest extends TestCase
 
         $disabled = [];
         foreach ((new SmsSettingsSection($this->registry(), fallbacks: new SmsFallbacks(' None ')))->getFallbacks() as $fallback) {
-            $disabled[$fallback->field] = $fallback->value;
+            $disabled[$fallback->field] = $fallback->value();
         }
         self::assertNull($disabled['provider'], 'a null default provider is not seeded');
         self::assertNull($disabled['bridge_api_mode'], 'the API mode is seeded only with a bridge URL');
@@ -121,10 +121,14 @@ final class SmsSettingsSectionTest extends TestCase
     public function testNoticeWhenTheActiveProviderMissesFields(): void
     {
         $registry = $this->registry();
-        $status   = static fn (SmsFallbacks $f): Closure => static fn (): SmsConfigStatus => new SmsConfigStatus(new SmsConfigResolver(new FakeInstanceSettings(), $f), $registry);
+        $status   = static fn (SmsFallbacks $f): Closure => static fn (): SmsConfigStatus => new SmsConfigStatus(new SmsConfigResolver(new FakeInstanceSettings(), $f), $registry, new FakeInstanceSettings());
 
         self::assertSame([], iterator_to_array((new SmsSettingsSection($registry))->getNotices($this->context())));
-        self::assertSame([], iterator_to_array((new SmsSettingsSection($registry, status: $status(new SmsFallbacks())))->getNotices($this->context())));
+        $unset = iterator_to_array((new SmsSettingsSection($registry, status: $status(new SmsFallbacks())))->getNotices($this->context()));
+        self::assertCount(1, $unset, 'recipe 1.2 before the seed: no provider chosen yet');
+        self::assertSame('settings.sms.notice_no_provider', $unset[0]->getMessage());
+        $disabled = static fn (): SmsConfigStatus => new SmsConfigStatus(new SmsConfigResolver(new FakeInstanceSettings(['sms.provider' => 'null']), new SmsFallbacks()), $registry, new FakeInstanceSettings(['sms.provider' => 'null']));
+        self::assertSame([], iterator_to_array((new SmsSettingsSection($registry, status: $disabled))->getNotices($this->context())), 'explicitly disabled: no warning');
 
         $notices = iterator_to_array((new SmsSettingsSection($registry, status: $status(new SmsFallbacks('twilio', 'Acme'))))->getNotices($this->context()));
         self::assertCount(1, $notices);

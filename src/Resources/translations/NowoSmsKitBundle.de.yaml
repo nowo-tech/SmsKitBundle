@@ -27,6 +27,7 @@ settings:
         bridge_device_id: 'SMS-Bridge-Gerät'
         bridge_device_id_help: 'Geräte-ID; leer lassen, damit die Bridge wählt.'
         send_test: 'Test-SMS senden'
+        notice_no_provider: 'Es ist noch kein SMS-Anbieter gewählt, daher ist der Versand deaktiviert. Wähle unten einen aus oder führe nowo:instance-settings:seed-from-fallbacks aus, wenn du von Umgebungsvariablen umstellst. Wähle „Deaktiviert“, um SMS ohne diesen Hinweis auszuschalten.'
         notice_missing: 'Dem aktiven Anbieter "%provider%" fehlen Pflichteinstellungen: %fields%. Nachrichten können erst gesendet werden, wenn sie ausgefüllt sind.'
 flash:
     test_sent: 'Test-SMS an %recipient% über %provider% gesendet (Status: %status%).'
