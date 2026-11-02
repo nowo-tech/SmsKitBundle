@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\SmsKitBundle\Tests\Unit\Settings;
 
+use Nowo\InstanceSettingsBundle\Section\SettingField;
 use Nowo\InstanceSettingsBundle\Section\SettingsSectionRegistry;
 use Nowo\SmsKitBundle\Provider\LogSmsProvider;
 use Nowo\SmsKitBundle\Provider\NullSmsProvider;
@@ -17,6 +18,7 @@ use Nowo\SmsKitBundle\Tests\Support\StubProvider;
 use PHPUnit\Framework\TestCase;
 
 use function array_diff;
+use function array_filter;
 use function array_keys;
 
 /**
@@ -45,9 +47,19 @@ final class SmsProviderFieldsTest extends TestCase
             self::assertNull($fields[$name]->visibleWhen, $name);
         }
 
-        self::assertSame(['provider', 'sender', 'test_recipient'], array_keys($registry->visibleFields('sms', ['provider' => 'null'])));
-        self::assertSame(['provider', 'sender', 'test_recipient'], array_keys($registry->visibleFields('sms', ['provider' => 'log'])));
-        self::assertSame(['provider', 'sender', 'test_recipient', 'twilio_account_sid', 'twilio_auth_token', 'twilio_messaging_service_sid'], array_keys($registry->visibleFields('sms', ['provider' => 'twilio'])));
+        self::assertSame(['provider', 'sender', 'test_recipient'], $this->visible($registry, ['provider' => 'null']));
+        self::assertSame(['provider', 'sender', 'test_recipient'], $this->visible($registry, ['provider' => 'log']));
+        self::assertSame(['provider', 'sender', 'test_recipient', 'twilio_account_sid', 'twilio_auth_token', 'twilio_messaging_service_sid'], $this->visible($registry, ['provider' => 'twilio']));
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @return list<string>
+     */
+    private function visible(SettingsSectionRegistry $registry, array $values): array
+    {
+        return array_keys(array_filter($registry->fields('sms'), static fn (SettingField $field): bool => $field->isVisibleFor($values)));
     }
 
     public function testUnregisteredProvidersKeepTheirRowsVisible(): void
@@ -64,7 +76,7 @@ final class SmsProviderFieldsTest extends TestCase
             $status  = new SmsConfigStatus(new SmsConfigResolver(new FakeInstanceSettings(), new SmsFallbacks($provider)), $this->providers());
             $missing = $status->missingFields();
             self::assertNotSame([], $missing, $provider);
-            self::assertSame([], array_diff($missing, array_keys($registry->visibleFields('sms', ['provider' => $provider]))), $provider);
+            self::assertSame([], array_diff($missing, $this->visible($registry, ['provider' => $provider])), $provider);
         }
     }
 }

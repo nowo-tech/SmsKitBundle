@@ -11,7 +11,7 @@ All notable changes to this project are documented here. The format follows
   (`twilio_account_sid`, `twilio_auth_token`, `twilio_messaging_service_sid`) show only for `twilio`, the SMS Bridge
   fields (`bridge_*`) only for `sms_bridge`; `log` / `null` show provider, sender and test recipient. Hidden rows keep
   their values: a save validates and writes only the selected provider's fields, so switching provider never loses the
-  other credentials. A provider that is not registered keeps its rows always visible. `SmsConfigStatus` only names
+  other credentials; an explicit "clear" on a hidden token still deletes it (InstanceSettings 1.3). A provider that is not registered keeps its rows always visible. `SmsConfigStatus` only names
   fields visible for the active provider (tested).
 - Demo: the UiKit `visible-when` peer is loaded; Playwright e2e (switch, save, switch back; axe in both states).
 

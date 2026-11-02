@@ -24,8 +24,10 @@ composer update nowo-tech/sms-kit-bundle nowo-tech/instance-settings-bundle nowo
 - Register the UiKit `visible-when` Stimulus peer in the host app
   (`vendor/nowo-tech/ui-kit-bundle/src/Resources/assets/stimulus-peers/visible_when_controller.ts`, identifier
   `visible-when`) so the `sms` page shows only the selected provider's credentials. Without it every row stays visible.
-- Saving the `sms` section with provider A no longer validates, overwrites or clears the fields of provider B (they
-  keep their stored values). To clear another provider's credentials, select it first. `InstanceSettings::save()` from
+- Saving the `sms` section with provider A no longer validates, overwrites or empties the fields of provider B (they
+  keep their stored values). Exception: checking "clear" on a hidden token (e.g. the Twilio token after switching to
+  SMS Bridge) deletes it without activating that provider; a value typed in a hidden row is ignored. To edit another
+  provider's plain fields, select it first. `InstanceSettings::save()` from
   code, imports and the seed are unchanged.
 
 ## To 1.2.0
