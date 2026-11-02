@@ -51,11 +51,11 @@
 
 | Source path | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `src/Settings/SmsSettingsSection.php` | Settings | FR-SET-001, FR-DBO-001, FR-DBO-002 ([002](../002-db-only-seed/spec.md)) |
+| `src/Settings/SmsSettingsSection.php` | Settings | FR-SET-001, FR-DBO-001, FR-DBO-002 ([002](../002-db-only-seed/spec.md)), FR-SMSVIS-001 ([003](../003-provider-dependent-fields/spec.md)) |
 | `src/Settings/SmsConfig.php` | Settings | FR-SET-002 |
 | `src/Settings/SmsFallbacks.php` | Settings | FR-SET-002 |
 | `src/Settings/SmsConfigResolver.php` | Settings | FR-SET-003 |
-| `src/Settings/SmsConfigStatus.php` | Settings | FR-DBO-003 ([002](../002-db-only-seed/spec.md)) |
+| `src/Settings/SmsConfigStatus.php` | Settings | FR-DBO-003 ([002](../002-db-only-seed/spec.md)), FR-SMSVIS-002 ([003](../003-provider-dependent-fields/spec.md)) |
 
 ## HTTP action and CLI
 

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cd87d30c12d930ec7056fd8e5f0d05fd",
+    "content-hash": "8798467a08ed159fce535e6515509f19",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -1168,16 +1168,16 @@
         },
         {
             "name": "nowo-tech/instance-settings-bundle",
-            "version": "v1.2.0",
+            "version": "v1.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/InstanceSettingsBundle.git",
-                "reference": "89c4fb60d441f5893b1c12ff1c7439a131b3fecc"
+                "reference": "6625b853cc1308e1d3278eeda29615dd321ce44e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/89c4fb60d441f5893b1c12ff1c7439a131b3fecc",
-                "reference": "89c4fb60d441f5893b1c12ff1c7439a131b3fecc",
+                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/6625b853cc1308e1d3278eeda29615dd321ce44e",
+                "reference": "6625b853cc1308e1d3278eeda29615dd321ce44e",
                 "shasum": ""
             },
             "require": {
@@ -1186,7 +1186,7 @@
                 "doctrine/persistence": "^3.1 || ^4.0",
                 "nowo-tech/doctrine-encrypt-bundle": "^2.10",
                 "nowo-tech/form-kit-bundle": "^2.17",
-                "nowo-tech/ui-kit-bundle": "^2.21",
+                "nowo-tech/ui-kit-bundle": "^2.23",
                 "php": ">=8.2 <8.6",
                 "psr/clock": "^1.0",
                 "psr/event-dispatcher": "^1.0",
@@ -1292,8 +1292,8 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-11-02T11:05:37+00:00",
-            "published-time": "2026-11-02T11:34:19+00:00"
+            "time": "2026-11-02T17:51:37+00:00",
+            "published-time": "2026-11-02T17:53:19+00:00"
         },
         {
             "name": "nowo-tech/outbound-url-guard-bundle",
@@ -1388,16 +1388,16 @@
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
-            "version": "v2.21.0",
+            "version": "v2.23.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/UiKitBundle.git",
-                "reference": "e0f552ed48ba35a690c39ac9a239e3238bc327ca"
+                "reference": "f433e09e70bc6075fe103791fc330b3533eb6009"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/e0f552ed48ba35a690c39ac9a239e3238bc327ca",
-                "reference": "e0f552ed48ba35a690c39ac9a239e3238bc327ca",
+                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/f433e09e70bc6075fe103791fc330b3533eb6009",
+                "reference": "f433e09e70bc6075fe103791fc330b3533eb6009",
                 "shasum": ""
             },
             "require": {
@@ -1478,8 +1478,8 @@
                 "issues": "https://github.com/nowo-tech/UiKitBundle/issues",
                 "source": "https://github.com/nowo-tech/UiKitBundle"
             },
-            "time": "2026-11-01T09:40:10+00:00",
-            "published-time": "2026-11-01T09:53:36+00:00"
+            "time": "2026-11-02T16:08:25+00:00",
+            "published-time": "2026-11-02T16:09:47+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
