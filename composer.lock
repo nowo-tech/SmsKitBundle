@@ -1172,12 +1172,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/InstanceSettingsBundle",
-                "reference": "44b1266cec50223b8805cd738cc855ba826b21d8"
+                "reference": "3b4a10bd54081e5fb7de5531816163976ac5f015"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/44b1266cec50223b8805cd738cc855ba826b21d8",
-                "reference": "44b1266cec50223b8805cd738cc855ba826b21d8",
+                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/3b4a10bd54081e5fb7de5531816163976ac5f015",
+                "reference": "3b4a10bd54081e5fb7de5531816163976ac5f015",
                 "shasum": ""
             },
             "require": {
@@ -1339,7 +1339,7 @@
                 "docs": "https://github.com/nowo-tech/InstanceSettingsBundle/tree/main/docs",
                 "changelog": "https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/CHANGELOG.md"
             },
-            "time": "2026-11-02T17:37:58+00:00"
+            "time": "2026-11-02T17:27:27+00:00"
         },
         {
             "name": "nowo-tech/outbound-url-guard-bundle",
