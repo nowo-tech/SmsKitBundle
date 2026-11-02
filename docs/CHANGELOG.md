@@ -3,7 +3,19 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## Table of contents
+
+- [[Unreleased]](#unreleased)
+- [[1.3.0] - 2026-11-02](#130---2026-11-02)
+- [[1.2.0] - 2026-11-02](#120---2026-11-02)
+- [[1.1.0] - 2026-11-01](#110---2026-11-01)
+- [[1.0.0] - 2026-10-31](#100---2026-10-31)
+
 ## [Unreleased]
+
+## [1.3.0] - 2026-11-02
+
+provider-dependent Twilio / SMS Bridge fields (InstanceSettings 1.3 visible_when)
 
 ### Added
 
