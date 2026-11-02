@@ -5,6 +5,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Provider-dependent rows in the `sms` settings section (InstanceSettings 1.3 `visible_when`): the Twilio fields
+  (`twilio_account_sid`, `twilio_auth_token`, `twilio_messaging_service_sid`) show only for `twilio`, the SMS Bridge
+  fields (`bridge_*`) only for `sms_bridge`; `log` / `null` show provider, sender and test recipient. Hidden rows keep
+  their values: a save validates and writes only the selected provider's fields, so switching provider never loses the
+  other credentials. A provider that is not registered keeps its rows always visible. `SmsConfigStatus` only names
+  fields visible for the active provider (tested).
+- Demo: the UiKit `visible-when` peer is loaded; Playwright e2e (switch, save, switch back; axe in both states).
+
+### Changed
+
+- Requires `nowo-tech/instance-settings-bundle` ^1.3 and `nowo-tech/ui-kit-bundle` ^2.23.
+
 ## [1.2.0] - 2026-11-02
 
 DB-only SMS settings: the sms section exposes its env / YAML fallbacks to nowo:instance-settings:seed-from-fallbacks, SmsConfigStatus + page notices for missing fields or no provider, Flex recipe 1.2 without env placeholders. Requires InstanceSettings ^1.2. See [UPGRADING](https://github.com/nowo-tech/SmsKitBundle/blob/v1.2.0/docs/UPGRADING.md#to-120).

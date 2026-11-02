@@ -72,6 +72,10 @@ The `sms` section of the InstanceSettings admin UI (`/admin/settings/sections/sm
 $settings->save('sms', ['provider' => 'sms_bridge', 'bridge_base_url' => 'https://sms-bridge.example.test', 'bridge_auth_token' => $key]);
 ```
 
+Since 1.3 the page shows only the credentials of the selected provider (Twilio rows for `twilio`, SMS Bridge rows for
+`sms_bridge`); switching provider and saving keeps the other providers' values, so switching back restores them. The
+warning of `SmsConfigStatus` names only fields of the active provider.
+
 A save dispatches `SettingsChangedEvent`; `SmsConfigResolver` listens to it and rebuilds the configuration for the next send. Empty fields use the [configuration fallbacks](CONFIGURATION.md#provider-and-sender-fallbacks).
 
 ### Twilio

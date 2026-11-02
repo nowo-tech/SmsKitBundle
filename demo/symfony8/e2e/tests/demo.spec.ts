@@ -42,10 +42,18 @@ test.describe('SMS kit demo', () => {
 
   test('a stored token is never rendered back', async ({ page }) => {
     await page.goto('/admin/settings/sections/sms');
+    // The Twilio rows are provider-dependent (1.3): select Twilio to edit them.
+    await sectionForm(page).getByLabel('Provider').selectOption('twilio');
     await sectionForm(page).getByRole('group', { name: 'Twilio Auth Token' }).getByLabel('New value').fill('REDACTED-DEMO-TOKEN');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Settings saved.')).toBeVisible();
     expect(await page.content()).not.toContain('REDACTED-DEMO-TOKEN');
+
+    // Back to the log provider: the Twilio rows are hidden and the stored token is kept.
+    await sectionForm(page).getByLabel('Provider').selectOption('log');
+    await expect(sectionForm(page).getByRole('group', { name: 'Twilio Auth Token' })).toBeHidden();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText('Settings saved.')).toBeVisible();
   });
 
   test('a forged CSRF token is refused', async ({ request }) => {

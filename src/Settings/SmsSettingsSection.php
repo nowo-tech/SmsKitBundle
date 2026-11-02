@@ -18,6 +18,7 @@ use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\NowoSmsKitBundle;
 use Nowo\SmsKitBundle\Phone\E164;
 use Nowo\SmsKitBundle\Phone\SenderId;
+use Nowo\SmsKitBundle\Provider\SmsBridgeProvider;
 use Nowo\SmsKitBundle\Provider\SmsProviderRegistry;
 use Nowo\SmsKitBundle\Provider\TwilioProvider;
 use Nowo\UiKitBundle\View\Action;
@@ -27,6 +28,7 @@ use Symfony\Component\Translation\TranslatableMessage;
 use Symfony\Component\Validator\Constraints\Regex;
 
 use function implode;
+use function in_array;
 use function trim;
 
 /**
@@ -36,7 +38,9 @@ use function trim;
  *
  * Empty fields fall back to the bundle configuration ({@see SmsFallbacks}). Since 1.2 the section exposes those
  * fallbacks to `nowo:instance-settings:seed-from-fallbacks` (DB-only mode) and warns on its page when the active
- * provider misses required fields ({@see SmsConfigStatus}).
+ * provider misses required fields ({@see SmsConfigStatus}). Since 1.3 the Twilio and SMS Bridge credentials are
+ * provider-dependent (`visible_when` on `provider`): only the selected provider's rows are shown and validated, the
+ * others keep their stored values.
  */
 final class SmsSettingsSection extends AbstractSettingsSection implements SettingsSectionActionsInterface, SectionFallbackProviderInterface, SettingsSectionNoticesInterface
 {
@@ -105,18 +109,22 @@ final class SmsSettingsSection extends AbstractSettingsSection implements Settin
         foreach ($this->providers->all() as $name => $provider) {
             $choices[$provider->getLabel()] = $name;
         }
+        // Provider-dependent rows (1.3, InstanceSettings visible_when): credentials of a provider are shown only while
+        // it is selected and keep their stored values when another provider is saved. Unregistered provider: always shown.
+        $twilio = static fn (SettingField $field): SettingField => in_array(TwilioProvider::NAME, $choices, true) ? $field->withVisibleWhen('provider', [TwilioProvider::NAME]) : $field;
+        $bridge = static fn (SettingField $field): SettingField => in_array(SmsBridgeProvider::NAME, $choices, true) ? $field->withVisibleWhen('provider', [SmsBridgeProvider::NAME]) : $field;
 
         yield SettingField::choice('provider', $choices, null, 'settings.sms.provider', 'settings.sms.provider_help');
         yield SettingField::string('sender', null, 'settings.sms.sender', 'settings.sms.sender_help', constraints: [new Regex(SenderId::PATTERN, 'Enter an E.164 number (+15550100123) or an alphanumeric sender id (1-11 letters, digits or spaces).')]);
         yield SettingField::string('test_recipient', null, 'settings.sms.test_recipient', 'settings.sms.test_recipient_help', constraints: [new Regex(E164::PATTERN, 'Enter an E.164 number such as +15550100123.')]);
-        yield SettingField::string('twilio_account_sid', null, 'settings.sms.twilio_account_sid', constraints: [new Regex(TwilioProvider::ACCOUNT_SID_PATTERN, 'A Twilio Account SID is "AC" followed by 32 hexadecimal characters.')]);
-        yield SettingField::secret('twilio_auth_token', 'settings.sms.twilio_auth_token');
-        yield SettingField::string('twilio_messaging_service_sid', null, 'settings.sms.twilio_messaging_service_sid', 'settings.sms.twilio_messaging_service_sid_help', constraints: [new Regex(TwilioProvider::MESSAGING_SERVICE_SID_PATTERN, 'A Messaging Service SID is "MG" followed by 32 hexadecimal characters.')]);
-        yield SettingField::url('bridge_base_url', null, 'settings.sms.bridge_base_url', 'settings.sms.bridge_base_url_help');
-        yield SettingField::choice('bridge_api_mode', ['settings.sms.bridge_api_mode_twilio' => SmsConfig::BRIDGE_MODE_TWILIO, 'settings.sms.bridge_api_mode_native' => SmsConfig::BRIDGE_MODE_NATIVE], null, 'settings.sms.bridge_api_mode');
-        yield SettingField::string('bridge_account_sid', null, 'settings.sms.bridge_account_sid', constraints: [new Regex(TwilioProvider::ACCOUNT_SID_PATTERN, 'An SMS Bridge Account SID is "AC" followed by 32 hexadecimal characters.')]);
-        yield SettingField::secret('bridge_auth_token', 'settings.sms.bridge_auth_token', 'settings.sms.bridge_auth_token_help');
-        yield SettingField::string('bridge_device_id', null, 'settings.sms.bridge_device_id', 'settings.sms.bridge_device_id_help', constraints: [new Regex(SmsMessage::DEVICE_ID_PATTERN, 'A device id has 1 to 64 letters, digits or dashes.')]);
+        yield $twilio(SettingField::string('twilio_account_sid', null, 'settings.sms.twilio_account_sid', constraints: [new Regex(TwilioProvider::ACCOUNT_SID_PATTERN, 'A Twilio Account SID is "AC" followed by 32 hexadecimal characters.')]));
+        yield $twilio(SettingField::secret('twilio_auth_token', 'settings.sms.twilio_auth_token'));
+        yield $twilio(SettingField::string('twilio_messaging_service_sid', null, 'settings.sms.twilio_messaging_service_sid', 'settings.sms.twilio_messaging_service_sid_help', constraints: [new Regex(TwilioProvider::MESSAGING_SERVICE_SID_PATTERN, 'A Messaging Service SID is "MG" followed by 32 hexadecimal characters.')]));
+        yield $bridge(SettingField::url('bridge_base_url', null, 'settings.sms.bridge_base_url', 'settings.sms.bridge_base_url_help'));
+        yield $bridge(SettingField::choice('bridge_api_mode', ['settings.sms.bridge_api_mode_twilio' => SmsConfig::BRIDGE_MODE_TWILIO, 'settings.sms.bridge_api_mode_native' => SmsConfig::BRIDGE_MODE_NATIVE], null, 'settings.sms.bridge_api_mode'));
+        yield $bridge(SettingField::string('bridge_account_sid', null, 'settings.sms.bridge_account_sid', constraints: [new Regex(TwilioProvider::ACCOUNT_SID_PATTERN, 'An SMS Bridge Account SID is "AC" followed by 32 hexadecimal characters.')]));
+        yield $bridge(SettingField::secret('bridge_auth_token', 'settings.sms.bridge_auth_token', 'settings.sms.bridge_auth_token_help'));
+        yield $bridge(SettingField::string('bridge_device_id', null, 'settings.sms.bridge_device_id', 'settings.sms.bridge_device_id_help', constraints: [new Regex(SmsMessage::DEVICE_ID_PATTERN, 'A device id has 1 to 64 letters, digits or dashes.')]));
     }
 
     /**

@@ -229,6 +229,10 @@ Contributed to InstanceSettingsBundle (section name `sms`, translation domain `N
 | `bridge_auth_token` | **secret** | `providers.sms_bridge.auth_token` | — |
 | `bridge_device_id` | string | `providers.sms_bridge.device_id` | 1–64 letters, digits, dashes |
 
+Since 1.3 the Twilio rows are shown only for provider `twilio` and the `bridge_*` rows only for `sms_bridge`
+(InstanceSettings `visible_when`; host registers the UiKit `visible-when` peer). A save validates and writes only the
+rows of the submitted provider; the other providers' values are kept. A provider not registered keeps its rows visible.
+
 Restrict who may edit it with `nowo_instance_settings.security.area_roles.sms: [ROLE_SUPER_ADMIN]` (the send-test action checks the same area). Exports include the plain fields; tokens travel only sealed with the instance key.
 
 ## Translations

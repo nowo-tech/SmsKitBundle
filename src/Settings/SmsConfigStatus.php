@@ -14,7 +14,8 @@ use function trim;
 /**
  * Configuration status of the active SMS provider, for the settings page notice and host health / status pages:
  * the `sms` field names that are required by the active provider but empty (stored value and fallback). Never
- * returns a value. Stateless (reads the memoized {@see SmsConfigResolver}).
+ * returns a value. Stateless (reads the memoized {@see SmsConfigResolver}). The fields it names are always among the
+ * fields visible for the active provider in the settings form (1.3 `visible_when`).
  */
 final readonly class SmsConfigStatus
 {
