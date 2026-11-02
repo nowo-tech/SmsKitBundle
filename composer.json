@@ -36,10 +36,17 @@
         "docs": "https://github.com/nowo-tech/SmsKitBundle/tree/main/docs",
         "changelog": "https://github.com/nowo-tech/SmsKitBundle/blob/main/docs/CHANGELOG.md"
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/nowo-tech/InstanceSettingsBundle",
+            "no-api": true
+        }
+    ],
     "require": {
         "php": ">=8.2 <8.6",
         "nowo-tech/form-kit-bundle": "^2.17",
-        "nowo-tech/instance-settings-bundle": "^1.2",
+        "nowo-tech/instance-settings-bundle": "dev-feat/seed-from-fallbacks as 1.2.0",
         "nowo-tech/outbound-url-guard-bundle": "^1.3",
         "nowo-tech/ui-kit-bundle": "^2.21",
         "psr/log": "^2.0 || ^3.0",
