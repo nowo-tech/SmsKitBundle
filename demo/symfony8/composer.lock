@@ -1166,12 +1166,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/InstanceSettingsBundle",
-                "reference": "3b4a10bd54081e5fb7de5531816163976ac5f015"
+                "reference": "311cbc4133d0995364b69ddbe8b34f2a78415dc4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/3b4a10bd54081e5fb7de5531816163976ac5f015",
-                "reference": "3b4a10bd54081e5fb7de5531816163976ac5f015",
+                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/311cbc4133d0995364b69ddbe8b34f2a78415dc4",
+                "reference": "311cbc4133d0995364b69ddbe8b34f2a78415dc4",
                 "shasum": ""
             },
             "require": {
@@ -1333,7 +1333,7 @@
                 "docs": "https://github.com/nowo-tech/InstanceSettingsBundle/tree/main/docs",
                 "changelog": "https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/CHANGELOG.md"
             },
-            "time": "2026-11-02T17:27:27+00:00"
+            "time": "2026-11-02T16:34:37+00:00"
         },
         {
             "name": "nowo-tech/outbound-url-guard-bundle",
@@ -1433,7 +1433,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/sms-kit-bundle",
-                "reference": "14ecd628dad77b43598aa5afc694fc509ec9d557"
+                "reference": "9225c3a6779cb29477e49f7142176c6a40a090f9"
             },
             "require": {
                 "nowo-tech/form-kit-bundle": "^2.17",
