@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4b1ba33e5b2a64a6895d798e201365f8",
+    "content-hash": "95234acce6c0a26933ef189a12311622",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -1162,16 +1162,16 @@
         },
         {
             "name": "nowo-tech/instance-settings-bundle",
-            "version": "v1.1.0",
+            "version": "dev-feat/seed-from-fallbacks",
             "source": {
                 "type": "git",
-                "url": "https://github.com/nowo-tech/InstanceSettingsBundle.git",
-                "reference": "1e714d909b05e448b73bd4653caf05d2de559a6d"
+                "url": "https://github.com/nowo-tech/InstanceSettingsBundle",
+                "reference": "f7454a4f397c6b4a5990b614aad3cbab6a0ecdfc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/1e714d909b05e448b73bd4653caf05d2de559a6d",
-                "reference": "1e714d909b05e448b73bd4653caf05d2de559a6d",
+                "url": "https://api.github.com/repos/nowo-tech/InstanceSettingsBundle/zipball/f7454a4f397c6b4a5990b614aad3cbab6a0ecdfc",
+                "reference": "f7454a4f397c6b4a5990b614aad3cbab6a0ecdfc",
                 "shasum": ""
             },
             "require": {
@@ -1180,7 +1180,7 @@
                 "doctrine/persistence": "^3.1 || ^4.0",
                 "nowo-tech/doctrine-encrypt-bundle": "^2.10",
                 "nowo-tech/form-kit-bundle": "^2.17",
-                "nowo-tech/ui-kit-bundle": "^2.17.3",
+                "nowo-tech/ui-kit-bundle": "^2.21",
                 "php": ">=8.2 <8.6",
                 "psr/clock": "^1.0",
                 "psr/event-dispatcher": "^1.0",
@@ -1242,7 +1242,60 @@
                     "Nowo\\InstanceSettingsBundle\\": "src/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "Nowo\\InstanceSettingsBundle\\Tests\\": "tests/"
+                }
+            },
+            "archive": {
+                "exclude": [
+                    "/demo",
+                    "/.cursor"
+                ]
+            },
+            "scripts": {
+                "test": [
+                    "phpunit --color=always"
+                ],
+                "test-coverage": [
+                    "phpunit --color=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text"
+                ],
+                "test-coverage-100": [
+                    "@test-coverage",
+                    "php .scripts/check-coverage.php coverage.xml --min-percent=100"
+                ],
+                "validate-phpdoc": [
+                    "php .scripts/complete-public-phpdoc.php"
+                ],
+                "cs-check": [
+                    "php-cs-fixer fix --dry-run --diff"
+                ],
+                "cs-fix": [
+                    "php-cs-fixer fix"
+                ],
+                "rector": [
+                    "rector process"
+                ],
+                "rector-dry": [
+                    "rector process --dry-run --no-progress-bar"
+                ],
+                "phpstan": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "update": [
+                    "composer update --no-interaction"
+                ],
+                "validate": [
+                    "composer validate --strict"
+                ],
+                "qa": [
+                    "@cs-check",
+                    "@test"
+                ],
+                "igor": [
+                    "igor-php --no-agent ."
+                ]
+            },
             "license": [
                 "MIT"
             ],
@@ -1261,7 +1314,6 @@
             "description": "Runtime instance settings for Symfony apps: one settings store split into tagged sections, encrypted secret fields, admin forms and import / export (portability).",
             "homepage": "https://github.com/nowo-tech/InstanceSettingsBundle",
             "keywords": [
-                "Settings",
                 "admin",
                 "configuration",
                 "doctrine",
@@ -1271,23 +1323,17 @@
                 "instance-settings",
                 "php",
                 "runtime",
+                "settings",
                 "symfony",
                 "symfony-bundle"
             ],
             "support": {
-                "changelog": "https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/CHANGELOG.md",
-                "docs": "https://github.com/nowo-tech/InstanceSettingsBundle/tree/main/docs",
                 "issues": "https://github.com/nowo-tech/InstanceSettingsBundle/issues",
-                "source": "https://github.com/nowo-tech/InstanceSettingsBundle"
+                "source": "https://github.com/nowo-tech/InstanceSettingsBundle",
+                "docs": "https://github.com/nowo-tech/InstanceSettingsBundle/tree/main/docs",
+                "changelog": "https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/CHANGELOG.md"
             },
-            "funding": [
-                {
-                    "url": "https://github.com/HecFranco",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-10-31T21:09:50+00:00",
-            "published-time": "2026-10-31T21:12:08+00:00"
+            "time": "2026-11-02T10:10:58+00:00"
         },
         {
             "name": "nowo-tech/outbound-url-guard-bundle",
@@ -1383,15 +1429,15 @@
         },
         {
             "name": "nowo-tech/sms-kit-bundle",
-            "version": "dev-main",
+            "version": "dev-feat/db-only-seed",
             "dist": {
                 "type": "path",
                 "url": "/var/sms-kit-bundle",
-                "reference": "0a3ade292cd18915d6191c1cfa68ffa02948be12"
+                "reference": "6160e0f30d5921ec37fdb68c386655e9ca15039c"
             },
             "require": {
                 "nowo-tech/form-kit-bundle": "^2.17",
-                "nowo-tech/instance-settings-bundle": "^1.1",
+                "nowo-tech/instance-settings-bundle": "dev-feat/seed-from-fallbacks as 1.2.0",
                 "nowo-tech/outbound-url-guard-bundle": "^1.3",
                 "nowo-tech/ui-kit-bundle": "^2.21",
                 "php": ">=8.2 <8.6",
@@ -9186,9 +9232,17 @@
             "time": "2025-11-17T20:03:58+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "nowo-tech/instance-settings-bundle",
+            "version": "dev-feat/seed-from-fallbacks",
+            "alias": "1.2.0",
+            "alias_normalized": "1.2.0.0"
+        }
+    ],
     "minimum-stability": "stable",
     "stability-flags": {
+        "nowo-tech/instance-settings-bundle": 20,
         "nowo-tech/sms-kit-bundle": 20
     },
     "prefer-stable": false,
