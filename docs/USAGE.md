@@ -19,6 +19,7 @@
 - [Logging](#logging)
 - [Forms and templates](#forms-and-templates)
 - [Translations](#translations)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 
 ## Sending a message
 
@@ -257,3 +258,52 @@ The bundle ships no Twig templates and no pages: the `sms` section is rendered b
 ## Translations
 
 Domain **`NowoSmsKitBundle`** (`en`, `es`, `fr`, `de`, `it`, `pt`, `nl`): section and field labels, provider names, the action label, flash messages, the test message and the AuthKit SMS body. Override keys in `translations/NowoSmsKitBundle.<locale>.yaml` (see [CONFIGURATION](CONFIGURATION.md#translations)).
+
+## Using it from a DDD / hexagonal application
+
+SmsKitBundle is an **infrastructure adapter** for sending SMS. It has no entities and no Doctrine mapping of its
+own; its configuration (provider, sender, credentials) is stored by InstanceSettingsBundle, with YAML / `%env()%`
+values as fallbacks.
+
+**Keep the domain free of the bundle**
+
+- Define your own port in the domain or application layer (for example `OneTimeCodeSender`) and implement it in
+  infrastructure with `Nowo\SmsKitBundle\Sender\SmsSenderInterface`. Only that adapter sees `SmsMessage`,
+  `SmsSendResult` and `SmsSendException`.
+- To add a gateway, implement `SmsProviderInterface` (autoconfigured, tag `nowo_sms_kit.provider`); see
+  [Writing a provider](#writing-a-provider).
+- For the AuthKit password-reset adapter, implement `PhoneNumberResolverInterface` and set
+  `auth_kit.password_reset.phone_resolver`, so the phone number comes from your own user model or read model instead
+  of a property read by name on the user object.
+
+**Adapter sketch**
+
+```php
+final readonly class SmsOneTimeCodeSender implements OneTimeCodeSender // your port
+{
+    public function __construct(private SmsSenderInterface $sms) {}
+
+    public function send(PhoneNumber $to, OneTimeCode $code): bool
+    {
+        if (!$this->sms->isConfigured()) {
+            return false;
+        }
+        try {
+            $this->sms->send(new SmsMessage((string) $to, sprintf('Your code is %s', $code)));
+        } catch (SmsSendException) {
+            return false; // already logged, masked, by the sender
+        }
+
+        return true;
+    }
+}
+```
+
+**Known limitations**
+
+- InstanceSettingsBundle (and therefore Doctrine ORM) is a required dependency, and the sender always resolves its
+  configuration through it; there is no port to supply the configuration from another source yet.
+- The bundle dispatches no events on sent or failed messages: decorate `SmsSenderInterface` in your adapter if you
+  need to record them.
+- Asynchronous delivery (Messenger) is only wired for the AuthKit password-reset adapter, and its message carries
+  only the destination and the body; dispatch your own Messenger message from your adapter for general async sends.
