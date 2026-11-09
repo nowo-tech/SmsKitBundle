@@ -13,6 +13,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Documentation
+
+- USAGE: new section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).
+
 ## [1.3.0] - 2026-11-02
 
 provider-dependent Twilio / SMS Bridge fields (InstanceSettings 1.3 visible_when)
