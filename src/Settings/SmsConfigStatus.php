@@ -20,12 +20,12 @@ use function trim;
 final readonly class SmsConfigStatus
 {
     /**
-     * @param SmsConfigResolver $resolver effective configuration
+     * @param SmsConfigProviderInterface $resolver effective configuration
      * @param SmsProviderRegistry $providers registered providers
      * @param InstanceSettingsInterface|null $settings store (detects "no provider chosen yet")
      */
     public function __construct(
-        private SmsConfigResolver $resolver,
+        private SmsConfigProviderInterface $resolver,
         private SmsProviderRegistry $providers,
         private ?InstanceSettingsInterface $settings = null,
     ) {

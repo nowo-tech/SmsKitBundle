@@ -13,6 +13,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Target 1.4.0. DDD / hexagonal P2 fix (audit 2026-11-09, SM-D1).
+
+### Added
+
+- `Settings\SmsConfigProviderInterface::current(): SmsConfig`: the configuration source of a send is a port.
+  `SmsConfigResolver` implements it and stays the default. New option `nowo_sms_kit.config_provider` (service id,
+  null = the settings resolver).
+- `Settings\FallbackSmsConfigProvider`: reads only the bundle configuration (`default_provider`, `sender`,
+  `providers.*`), never the `sms` section.
+
+### Changed
+
+- `ConfiguredSmsSender`, `SmsConfigStatus` and `SendTestSmsController` take a `SmsConfigProviderInterface` (a
+  `SmsConfigResolver` still fits). With a custom `config_provider`, `SmsConfigStatus::isProviderUnset()` is always
+  false (there is no settings store to ask).
+
 ### Documentation
 
 - USAGE: new section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).

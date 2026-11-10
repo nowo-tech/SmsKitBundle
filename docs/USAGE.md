@@ -275,6 +275,11 @@ values as fallbacks.
 - For the AuthKit password-reset adapter, implement `PhoneNumberResolverInterface` and set
   `auth_kit.password_reset.phone_resolver`, so the phone number comes from your own user model or read model instead
   of a property read by name on the user object.
+- To keep the provider settings out of Instance Settings (secret manager, per-tenant table, plain `%env()%`),
+  implement `Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface` (`current(): SmsConfig`) and set
+  `nowo_sms_kit.config_provider` to its service id (1.4). `Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider`
+  is ready-made for "bundle configuration only". The default stays `SmsConfigResolver` (the `sms` section over the
+  bundle configuration).
 
 **Adapter sketch**
 
@@ -301,8 +306,8 @@ final readonly class SmsOneTimeCodeSender implements OneTimeCodeSender // your p
 
 **Known limitations**
 
-- InstanceSettingsBundle (and therefore Doctrine ORM) is a required dependency, and the sender always resolves its
-  configuration through it; there is no port to supply the configuration from another source yet.
+- InstanceSettingsBundle (and therefore Doctrine ORM) stays a required dependency: the `sms` settings section, the
+  test action and the settings listener are registered even when `config_provider` points elsewhere.
 - The bundle dispatches no events on sent or failed messages: decorate `SmsSenderInterface` in your adapter if you
   need to record them.
 - Asynchronous delivery (Messenger) is only wired for the AuthKit password-reset adapter, and its message carries

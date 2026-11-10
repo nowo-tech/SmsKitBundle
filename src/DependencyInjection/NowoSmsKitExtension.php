@@ -36,6 +36,8 @@ use Nowo\SmsKitBundle\Provider\TwilioProvider;
 use Nowo\SmsKitBundle\Routing\SmsKitRouteLoader;
 use Nowo\SmsKitBundle\Sender\ConfiguredSmsSender;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
+use Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider;
+use Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
 use Nowo\SmsKitBundle\Settings\SmsConfigStatus;
 use Nowo\SmsKitBundle\Settings\SmsFallbacks;
@@ -97,7 +99,7 @@ final class NowoSmsKitExtension extends Extension
         $config = $this->processConfiguration(new Configuration(), $configs);
         $this->assertLiteralBooleans($config);
 
-        /* @var array{default_provider: string, sender: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int}, destinations: array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string, messenger_failures: string}}} $config */
+        /* @var array{default_provider: string, sender: string|null, config_provider: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int}, destinations: array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string, messenger_failures: string}}} $config */
         $container->setParameter('nowo_sms_kit.test_action.enabled', $config['test_action']['enabled']);
         $container->setParameter('nowo_sms_kit.test_action.path', $config['test_action']['path']);
 
@@ -105,7 +107,7 @@ final class NowoSmsKitExtension extends Extension
 
         $this->registerProviders($container, $config['http'], $config['providers']);
         $this->registerDestinations($container, $config['destinations']);
-        $this->registerSender($container, $config['default_provider'], $config['sender'], $config['providers'], $config['test_action']['enabled']);
+        $this->registerSender($container, $config['default_provider'], $config['sender'], $config['providers'], $config['test_action']['enabled'], $config['config_provider']);
         $this->registerTestAction($container, $config['test_action']);
         $this->registerAuthKit($container, $config['auth_kit']['password_reset']);
     }
@@ -158,8 +160,9 @@ final class NowoSmsKitExtension extends Extension
      * @param string|null $sender `sender`
      * @param array{twilio: array{api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}} $providers `providers`
      * @param bool $testAction `test_action.enabled`
+     * @param string|null $configProvider `config_provider` (null = the settings resolver)
      */
-    private function registerSender(ContainerBuilder $container, string $defaultProvider, ?string $sender, array $providers, bool $testAction): void
+    private function registerSender(ContainerBuilder $container, string $defaultProvider, ?string $sender, array $providers, bool $testAction, ?string $configProvider = null): void
     {
         $twilio = $providers['twilio'];
         $bridge = $providers['sms_bridge'];
@@ -185,17 +188,22 @@ final class NowoSmsKitExtension extends Extension
         ]))
             ->addTag('kernel.reset', ['method' => 'reset'])
             ->addTag('kernel.event_listener', ['event' => SettingsChangedEvent::class, 'method' => 'onSettingsChanged']));
+        // 1.4 (DDD P2): the configuration source is a port; the settings resolver stays the default.
+        $container->setDefinition(FallbackSmsConfigProvider::class, new Definition(FallbackSmsConfigProvider::class, [new Reference(SmsFallbacks::class)]));
+        $custom = is_string($configProvider) && $configProvider !== '';
+        $container->setAlias(SmsConfigProviderInterface::class, $custom ? $configProvider : SmsConfigResolver::class);
 
         // Public: host health / status pages read it.
         $container->setDefinition(SmsConfigStatus::class, (new Definition(SmsConfigStatus::class, [
-            new Reference(SmsConfigResolver::class),
+            new Reference(SmsConfigProviderInterface::class),
             new Reference(SmsProviderRegistry::class),
-            new Reference(InstanceSettingsInterface::class),
+            // "No provider chosen yet" is a property of the settings store only.
+            $custom ? null : new Reference(InstanceSettingsInterface::class),
         ]))->setPublic(true));
 
         $container->setDefinition(ConfiguredSmsSender::class, (new Definition(ConfiguredSmsSender::class, [
             new Reference(SmsProviderRegistry::class),
-            new Reference(SmsConfigResolver::class),
+            new Reference(SmsConfigProviderInterface::class),
             new Reference('logger'),
             new Reference(DestinationPolicy::class),
             new Reference(OutboundUrlGuard::class),
@@ -247,7 +255,7 @@ final class NowoSmsKitExtension extends Extension
             new Reference(InstanceSettingsAccessCheckerInterface::class),
             new Reference(CsrfOnlyFormFactory::class),
             new Reference(SmsSenderInterface::class),
-            new Reference(SmsConfigResolver::class),
+            new Reference(SmsConfigProviderInterface::class),
             new Reference(self::TEST_RATE_LIMITER),
             new Reference('router'),
             new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE),

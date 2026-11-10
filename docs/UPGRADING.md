@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [To 1.4.0](#to-140)
 - [To 1.3.0](#to-130)
 - [To 1.2.0](#to-120)
   - [To 1.2.0](#to-120-1)
@@ -14,6 +15,18 @@
   - [Breaking changes](#breaking-changes)
 
 ## Unreleased
+
+### To 1.4.0
+
+Target **1.4.0**, from **1.3.0**: `composer update nowo-tech/sms-kit-bundle`. Nothing changes by default.
+
+1. **Optional configuration port.** Set `nowo_sms_kit.config_provider` to a service implementing
+   `Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface` to take provider, sender and credentials from your own
+   store, or to `Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider` to use only the bundle configuration
+   (`%env()%`). Values stored in the `sms` section are then ignored by the sender; the section page still exists.
+2. Code that builds `ConfiguredSmsSender`, `SmsConfigStatus` or `SendTestSmsController` by hand with a
+   `SmsConfigResolver` keeps working.
+3. Instance Settings stays required (`^1.3`); this release does not need a newer one.
 
 ## To 1.3.0
 

@@ -23,8 +23,10 @@ use function trim;
  * Worker-safe: the result is memoized for the current main request only (a new main request always rebuilds it, even
  * without `kernel.reset`), cleared by `kernel.reset` (Messenger workers) and by {@see SettingsChangedEvent} for the
  * `sms` section, so a provider switch or a new token applies to the very next send.
+ *
+ * Default {@see SmsConfigProviderInterface} (1.4).
  */
-final class SmsConfigResolver implements ResetInterface
+final class SmsConfigResolver implements SmsConfigProviderInterface, ResetInterface
 {
     /** Values that select the null provider (as the Beacon `SMS_PROVIDER` variable accepted). */
     private const DISABLED = ['', 'none', 'disabled', 'off', 'null'];

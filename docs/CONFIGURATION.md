@@ -24,6 +24,7 @@
 nowo_sms_kit:
     default_provider: 'null'          # provider while sms.provider is not stored: null, log, twilio, sms_bridge or a host provider
     sender: null                      # sender while sms.sender is not stored (E.164 or alphanumeric id)
+    config_provider: null             # 1.4: service id of a SmsConfigProviderInterface (null = the sms section over this configuration; FallbackSmsConfigProvider = this configuration only)
     http:
         timeout: 5.0                  # idle timeout (s) of a provider request, 0.1 … 60
         max_duration: 15.0            # total duration cap (s), 0.1 … 120, >= timeout
