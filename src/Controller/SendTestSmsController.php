@@ -13,7 +13,7 @@ use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\NowoSmsKitBundle;
 use Nowo\SmsKitBundle\Phone\E164;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
-use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
+use Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -54,7 +54,7 @@ final readonly class SendTestSmsController
      * @param InstanceSettingsAccessCheckerInterface $access instance settings access checker (area `sms`)
      * @param CsrfOnlyFormFactory $csrfForms FormKit CSRF-only form factory
      * @param SmsSenderInterface $sender SMS sender
-     * @param SmsConfigResolver $resolver effective configuration (test recipient)
+     * @param SmsConfigProviderInterface $resolver effective configuration (test recipient)
      * @param RateLimiterFactoryInterface $rateLimiter per-user limiter of the action
      * @param UrlGeneratorInterface $urls router
      * @param TokenStorageInterface|null $tokens security token storage (null without SecurityBundle)
@@ -65,7 +65,7 @@ final readonly class SendTestSmsController
         private InstanceSettingsAccessCheckerInterface $access,
         private CsrfOnlyFormFactory $csrfForms,
         private SmsSenderInterface $sender,
-        private SmsConfigResolver $resolver,
+        private SmsConfigProviderInterface $resolver,
         private RateLimiterFactoryInterface $rateLimiter,
         private UrlGeneratorInterface $urls,
         private ?TokenStorageInterface $tokens = null,

@@ -16,7 +16,7 @@ use Nowo\SmsKitBundle\Provider\NullSmsProvider;
 use Nowo\SmsKitBundle\Provider\SmsProviderInterface;
 use Nowo\SmsKitBundle\Provider\SmsProviderRegistry;
 use Nowo\SmsKitBundle\Settings\SmsConfig;
-use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
+use Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -42,14 +42,14 @@ final readonly class ConfiguredSmsSender implements SmsSenderInterface
 
     /**
      * @param SmsProviderRegistry $providers registered providers
-     * @param SmsConfigResolver $resolver effective configuration
+     * @param SmsConfigProviderInterface $resolver effective configuration (the settings resolver unless `config_provider` is set)
      * @param LoggerInterface $logger PSR-3 logger
      * @param DestinationPolicy $destinations destination / cost policy (`nowo_sms_kit.destinations`)
      * @param OutboundUrlGuard $callbackGuard checks caller-supplied status callback URLs (public https only)
      */
     public function __construct(
         private SmsProviderRegistry $providers,
-        private SmsConfigResolver $resolver,
+        private SmsConfigProviderInterface $resolver,
         private LoggerInterface $logger = new NullLogger(),
         private DestinationPolicy $destinations = new DestinationPolicy(),
         private OutboundUrlGuard $callbackGuard = new OutboundUrlGuard(resolveDns: false),

@@ -9,6 +9,7 @@ use Nowo\OutboundUrlGuardBundle\Guard\OutboundUrlGuard;
 use Nowo\SmsKitBundle\Command\SendSmsCommand;
 use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
+use Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
 use Nowo\SmsKitBundle\Tests\Support\Numbers;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -75,6 +76,16 @@ final class SenderIntegrationTest extends KernelTestCase
         $sender = $this->sender($this->bootKernel(['default_provider' => '%env(default:sms_kit_test_provider:SMS_KIT_TEST_UNDEFINED)%'], parameters: ['sms_kit_test_provider' => 'log']));
 
         self::assertSame('log', $sender->getProviderId());
+    }
+
+    public function testTheFallbackConfigProviderIgnoresTheSettings(): void
+    {
+        $kernel = $this->bootKernel(['config_provider' => FallbackSmsConfigProvider::class, 'default_provider' => 'log']);
+        $this->settings($kernel)->save('sms', ['provider' => 'twilio']);
+
+        $sender = $this->sender($kernel);
+        self::assertSame('log', $sender->getProviderId(), '1.4: the stored provider is not read');
+        self::assertSame('logged', $sender->send(new SmsMessage(Numbers::TO, 'hello'))->status);
     }
 
     public function testTheCommandIsRegistered(): void

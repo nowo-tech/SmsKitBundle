@@ -7,6 +7,7 @@ namespace Nowo\SmsKitBundle\Tests\Unit\DependencyInjection;
 use LogicException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\InstanceSettingsBundle\NowoInstanceSettingsBundle;
+use Nowo\InstanceSettingsBundle\Settings\InstanceSettingsInterface;
 use Nowo\SmsKitBundle\AuthKit\PhoneNumberResolverInterface;
 use Nowo\SmsKitBundle\AuthKit\PropertyPhoneNumberResolver;
 use Nowo\SmsKitBundle\AuthKit\SmsPasswordResetNotifier;
@@ -29,7 +30,10 @@ use Nowo\SmsKitBundle\Provider\TwilioProvider;
 use Nowo\SmsKitBundle\Routing\SmsKitRouteLoader;
 use Nowo\SmsKitBundle\Sender\ConfiguredSmsSender;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
+use Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider;
+use Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
+use Nowo\SmsKitBundle\Settings\SmsConfigStatus;
 use Nowo\SmsKitBundle\Settings\SmsFallbacks;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
 use PHPUnit\Framework\TestCase;
@@ -73,6 +77,21 @@ final class NowoSmsKitExtensionTest extends TestCase
         self::assertSame('/admin/settings/sms/test', $container->getParameter('nowo_sms_kit.test_action.path'));
         self::assertArrayHasKey(SmsProviderInterface::class, $container->getAutoconfiguredInstanceof());
         self::assertFalse($container->hasDefinition(SmsPasswordResetNotifier::class));
+    }
+
+    public function testTheConfigurationSourceIsAPort(): void
+    {
+        $default = $this->load();
+        self::assertSame(SmsConfigResolver::class, (string) $default->getAlias(SmsConfigProviderInterface::class));
+        self::assertSame(SmsConfigProviderInterface::class, (string) $default->getDefinition(ConfiguredSmsSender::class)->getArgument(1));
+        self::assertSame(SmsConfigProviderInterface::class, (string) $default->getDefinition(SendTestSmsController::class)->getArgument(3));
+        self::assertSame(InstanceSettingsInterface::class, (string) $default->getDefinition(SmsConfigStatus::class)->getArgument(2));
+        self::assertTrue($default->hasDefinition(FallbackSmsConfigProvider::class));
+
+        $custom = $this->load(['config_provider' => FallbackSmsConfigProvider::class]);
+        self::assertSame(FallbackSmsConfigProvider::class, (string) $custom->getAlias(SmsConfigProviderInterface::class));
+        self::assertSame(SmsConfigProviderInterface::class, (string) $custom->getDefinition(SmsConfigStatus::class)->getArgument(0));
+        self::assertNull($custom->getDefinition(SmsConfigStatus::class)->getArgument(2));
     }
 
     public function testOptionalProvidersAndTestActionCanBeDisabled(): void
