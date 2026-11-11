@@ -17,7 +17,7 @@ use function trim;
  * returns a value. Stateless (reads the memoized {@see SmsConfigResolver}). The fields it names are always among the
  * fields visible for the active provider in the settings form (1.3 `visible_when`).
  */
-final readonly class SmsConfigStatus
+final readonly class SmsConfigStatus implements SmsConfigStatusInterface
 {
     /**
      * @param SmsConfigProviderInterface $resolver effective configuration

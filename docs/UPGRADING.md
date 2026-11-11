@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
   - [To 1.4.0](#to-140-1)
 - [To 1.3.0](#to-130)
@@ -16,6 +17,21 @@
   - [Breaking changes](#breaking-changes)
 
 ## Unreleased
+
+### To 1.5.0
+
+Target **1.5.0**, from **1.4.0**: `composer update nowo-tech/sms-kit-bundle`. **Standard hosts: nothing to change**
+(Instance Settings registered → same services, same defaults).
+
+1. **Without Instance Settings (opt-in, DDD hosts).** Leave `NowoInstanceSettingsBundle` (and, if nothing else needs
+   them, DoctrineBundle and DoctrineEncrypt) out of `config/bundles.php`. The configuration then comes from
+   `nowo_sms_kit.config_provider` (your `SmsConfigProviderInterface` service) or, when unset, from the bundle
+   configuration (`default_provider`, `sender`, `providers.*`, typically `%env()%`). There is no settings page, so no
+   send-test action; `nowo:sms:send` keeps working.
+2. **New port (optional).** Prefer `SmsConfigStatusInterface` over `SmsConfigStatus` in health pages.
+3. **Deprecation notice.** Instance Settings stays in `require` in 1.x; 2.0 moves it to `suggest`. If your
+   application uses Instance Settings itself (or relies on SmsKit to install it), require
+   `nowo-tech/instance-settings-bundle` explicitly now.
 
 ## To 1.4.0
 

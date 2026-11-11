@@ -262,8 +262,8 @@ Domain **`NowoSmsKitBundle`** (`en`, `es`, `fr`, `de`, `it`, `pt`, `nl`): sectio
 ## Using it from a DDD / hexagonal application
 
 SmsKitBundle is an **infrastructure adapter** for sending SMS. It has no entities and no Doctrine mapping of its
-own; its configuration (provider, sender, credentials) is stored by InstanceSettingsBundle, with YAML / `%env()%`
-values as fallbacks.
+own; by default its configuration (provider, sender, credentials) is stored by InstanceSettingsBundle, with YAML /
+`%env()%` values as fallbacks. Since 1.5 Instance Settings is optional (see below).
 
 **Keep the domain free of the bundle**
 
@@ -280,6 +280,32 @@ values as fallbacks.
   `nowo_sms_kit.config_provider` to its service id (1.4). `Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider`
   is ready-made for "bundle configuration only". The default stays `SmsConfigResolver` (the `sms` section over the
   bundle configuration).
+- Health / status pages: inject `Nowo\SmsKitBundle\Settings\SmsConfigStatusInterface` (1.5; active provider and
+  missing field names, never a value).
+
+**Without Instance Settings and without Doctrine (1.5)**
+
+Standard path (default): register `NowoInstanceSettingsBundle`; the `sms` section stores the provider and the
+credentials, edited at runtime, with the bundle configuration as fallback. DDD path (opt-in): leave Instance Settings
+out of `config/bundles.php`; SmsKit then needs no Doctrine and reads its configuration from your port, or from the
+bundle configuration when `config_provider` is unset:
+
+```yaml
+# config/packages/nowo_sms_kit.yaml — config/bundles.php has no NowoInstanceSettingsBundle
+nowo_sms_kit:
+    config_provider: App\Infrastructure\Sms\TenantSmsConfigProvider   # optional; default = this configuration
+    default_provider: '%env(SMS_PROVIDER)%'
+    sender: '%env(SMS_SENDER)%'
+```
+
+`current()` is called for every send, so per-tenant or per-request values work in a kept-alive worker (keep no state
+in the provider). The send-test action is not registered (it is a button of the Instance Settings page);
+`nowo:sms:send` and the AuthKit adapter keep working.
+
+**Sending inside a transaction**
+
+SmsKit sends when you call it (it has no persistence of its own). Send after your unit of work commits — from an
+after-commit domain-event subscriber or a Messenger handler — so a rolled-back use case never sends an SMS.
 
 **Adapter sketch**
 
@@ -306,8 +332,8 @@ final readonly class SmsOneTimeCodeSender implements OneTimeCodeSender // your p
 
 **Known limitations**
 
-- InstanceSettingsBundle (and therefore Doctrine ORM) stays a required dependency: the `sms` settings section, the
-  test action and the settings listener are registered even when `config_provider` points elsewhere.
+- InstanceSettingsBundle stays in composer `require` in 1.x (installed, but it does not have to be registered);
+  2.0 moves it to `suggest`.
 - The bundle dispatches no events on sent or failed messages: decorate `SmsSenderInterface` in your adapter if you
   need to record them.
 - Asynchronous delivery (Messenger) is only wired for the AuthKit password-reset adapter, and its message carries

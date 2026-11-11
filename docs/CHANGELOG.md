@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Target 1.5.0](#target-150)
 - [[1.4.0] - 2026-11-10](#140---2026-11-10)
 - [[1.3.0] - 2026-11-02](#130---2026-11-02)
 - [[1.2.0] - 2026-11-02](#120---2026-11-02)
@@ -13,6 +14,28 @@ All notable changes to this project are documented here. The format follows
 - [[1.0.0] - 2026-10-31](#100---2026-10-31)
 
 ## [Unreleased]
+
+### Target 1.5.0
+
+Architecture bar W2 (standard Symfony by default, strict DDD opt-in): rule 8 (configuration through provider ports)
+and rule 1.
+
+#### Added
+
+- Instance Settings is optional: without `NowoInstanceSettingsBundle` registered, the bundle boots without it (and
+  without Doctrine). `SmsConfigResolver`, the `sms` section and the send-test action are then not registered, and
+  the configuration comes from `config_provider` (a host service) or, by default, from the bundle configuration
+  (`FallbackSmsConfigProvider`). `test_action.enabled` is ignored without Instance Settings (the button lives on its
+  settings page; the effective value is in the `nowo_sms_kit.test_action.enabled` parameter).
+- `Settings\SmsConfigStatusInterface` (`isProviderUnset()`, `provider()`, `missingFields()`, `hasMissingFields()`),
+  aliased to `SmsConfigStatus`, for host health / status pages.
+- Container parameter `nowo_sms_kit.instance_settings` (whether Instance Settings is registered).
+
+#### Changed
+
+- Standard hosts (Instance Settings registered): unchanged services and defaults.
+- `composer.json` keeps `nowo-tech/instance-settings-bundle` in `require` until 2.0 (it moves to `suggest` then); the
+  code path is optional now.
 
 ## [1.4.0] - 2026-11-10
 

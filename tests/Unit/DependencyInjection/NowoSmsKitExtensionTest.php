@@ -6,6 +6,7 @@ namespace Nowo\SmsKitBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
+use Nowo\InstanceSettingsBundle\DependencyInjection\NowoInstanceSettingsExtension;
 use Nowo\InstanceSettingsBundle\NowoInstanceSettingsBundle;
 use Nowo\InstanceSettingsBundle\Settings\InstanceSettingsInterface;
 use Nowo\SmsKitBundle\AuthKit\PhoneNumberResolverInterface;
@@ -34,6 +35,7 @@ use Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider;
 use Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
 use Nowo\SmsKitBundle\Settings\SmsConfigStatus;
+use Nowo\SmsKitBundle\Settings\SmsConfigStatusInterface;
 use Nowo\SmsKitBundle\Settings\SmsFallbacks;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
 use PHPUnit\Framework\TestCase;
@@ -44,9 +46,10 @@ final class NowoSmsKitExtensionTest extends TestCase
     /**
      * @param array<string, mixed> $config
      */
-    private function load(array $config = [], ?NowoSmsKitExtension $extension = null): ContainerBuilder
+    private function load(array $config = [], ?NowoSmsKitExtension $extension = null, bool $instanceSettings = true): ContainerBuilder
     {
         $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', $instanceSettings ? ['NowoInstanceSettingsBundle' => NowoInstanceSettingsBundle::class] : []);
         ($extension ?? new NowoSmsKitExtension())->load([$config], $container);
 
         return $container;
@@ -92,6 +95,29 @@ final class NowoSmsKitExtensionTest extends TestCase
         self::assertSame(FallbackSmsConfigProvider::class, (string) $custom->getAlias(SmsConfigProviderInterface::class));
         self::assertSame(SmsConfigProviderInterface::class, (string) $custom->getDefinition(SmsConfigStatus::class)->getArgument(0));
         self::assertNull($custom->getDefinition(SmsConfigStatus::class)->getArgument(2));
+    }
+
+    public function testWithoutInstanceSettingsTheBundleConfigurationIsTheSource(): void
+    {
+        $container = $this->load(instanceSettings: false);
+
+        self::assertFalse($container->getParameter(NowoSmsKitExtension::INSTANCE_SETTINGS_PARAMETER));
+        self::assertSame(FallbackSmsConfigProvider::class, (string) $container->getAlias(SmsConfigProviderInterface::class));
+        self::assertFalse($container->hasDefinition(SmsConfigResolver::class));
+        self::assertFalse($container->hasDefinition(SmsSettingsSection::class));
+        self::assertNull($container->getDefinition(SmsConfigStatus::class)->getArgument(2));
+        self::assertSame(SmsConfigStatus::class, (string) $container->getAlias(SmsConfigStatusInterface::class));
+        self::assertFalse($container->getParameter('nowo_sms_kit.test_action.enabled'));
+        self::assertFalse($container->hasDefinition(SendTestSmsController::class));
+        self::assertFalse($container->getDefinition(SmsKitRouteLoader::class)->getArgument(0));
+
+        $host = $this->load(['config_provider' => 'app.sms_config'], instanceSettings: false);
+        self::assertSame('app.sms_config', (string) $host->getAlias(SmsConfigProviderInterface::class));
+
+        $extensionOnly = new ContainerBuilder();
+        $extensionOnly->registerExtension(new NowoInstanceSettingsExtension());
+        (new NowoSmsKitExtension())->load([[]], $extensionOnly);
+        self::assertTrue($extensionOnly->getParameter(NowoSmsKitExtension::INSTANCE_SETTINGS_PARAMETER));
     }
 
     public function testOptionalProvidersAndTestActionCanBeDisabled(): void

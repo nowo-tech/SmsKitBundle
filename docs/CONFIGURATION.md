@@ -24,7 +24,7 @@
 nowo_sms_kit:
     default_provider: 'null'          # provider while sms.provider is not stored: null, log, twilio, sms_bridge or a host provider
     sender: null                      # sender while sms.sender is not stored (E.164 or alphanumeric id)
-    config_provider: null             # 1.4: service id of a SmsConfigProviderInterface (null = the sms section over this configuration; FallbackSmsConfigProvider = this configuration only)
+    config_provider: null             # 1.4: service id of a SmsConfigProviderInterface (null = the sms section over this configuration, or this configuration only without Instance Settings (1.5); FallbackSmsConfigProvider = this configuration only)
     http:
         timeout: 5.0                  # idle timeout (s) of a provider request, 0.1 … 60
         max_duration: 15.0            # total duration cap (s), 0.1 … 120, >= timeout
@@ -156,7 +156,7 @@ Refusals raise `DestinationNotAllowedException` (a `SmsSendException`). Budgets 
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `enabled` | `true` | Shows **Send a test SMS** on the `sms` section page and registers the POST route of the `nowo_sms_kit` route loader. Needs form CSRF; the button shows on the InstanceSettings section page (without that admin UI the route still answers, protected, and redirects to `/`). |
+| `enabled` | `true` | Shows **Send a test SMS** on the `sms` section page and registers the POST route of the `nowo_sms_kit` route loader. Ignored (off) without NowoInstanceSettingsBundle (1.5). Needs form CSRF; the button shows on the InstanceSettings section page (without that admin UI the route still answers, protected, and redirects to `/`). |
 | `path` | `/admin/settings/sms/test` | Route path. Keep it under the InstanceSettings prefix so the same firewall rule covers it. |
 | `rate_limit.limit` | `5` | Messages per window and per user (hash of the user identifier; client IP hash when anonymous). |
 | `rate_limit.interval` | `15 minutes` | Sliding window, any relative time `strtotime()` understands. State lives in `cache.app`: per node with the filesystem default, so use a shared pool in a cluster (N nodes otherwise allow N × limit). |
