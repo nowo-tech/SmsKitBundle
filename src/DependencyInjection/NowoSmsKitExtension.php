@@ -205,7 +205,12 @@ final class NowoSmsKitExtension extends Extension
                 new Reference('request_stack', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             ]))
                 ->addTag('kernel.reset', ['method' => 'reset'])
-                ->addTag('kernel.event_listener', ['event' => SettingsChangedEvent::class, 'method' => 'onSettingsChanged']));
+                ->addTag('kernel.event_listener', ['event' => SettingsChangedEvent::class, 'method' => 'onSettingsChanged'])
+                // Since 1.5.1: outside HTTP the memo has no request to bind to; rebuild it per Messenger message and
+                // per console command, so a consumer follows settings saved by another process (kernel reset false).
+                ->addTag('kernel.event_listener', ['event' => DeferredSmsDelivery::WORKER_MESSAGE_RECEIVED, 'method' => 'reset'])
+                ->addTag('kernel.event_listener', ['event' => 'console.command', 'method' => 'reset'])
+                ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'reset']));
         }
         // 1.4 (DDD P2): the configuration source is a port; the settings resolver stays the default. 1.5: without
         // Instance Settings the default is the bundle configuration.
@@ -383,10 +388,19 @@ final class NowoSmsKitExtension extends Extension
         } elseif ($delivery === SyncSmsDelivery::class) {
             $container->setDefinition(SyncSmsDelivery::class, new Definition(SyncSmsDelivery::class, [new Reference(SafeSender::class)]));
         } else {
-            $container->setDefinition(DeferredSmsDelivery::class, (new Definition(DeferredSmsDelivery::class, [new Reference(SafeSender::class)]))
+            $container->setDefinition(DeferredSmsDelivery::class, (new Definition(DeferredSmsDelivery::class, [
+                new Reference(SafeSender::class),
+                new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ]))
+                ->addTag('monolog.logger', ['channel' => 'sms'])
                 ->addTag('kernel.reset', ['method' => 'reset'])
                 ->addTag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => 'flush'])
-                ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'flush']));
+                ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'flush'])
+                // Messenger consumers never reach kernel.terminate: send what a message queued when it is handled,
+                // drop it when it fails (rolled back; a retry queues it again). Event names as strings, symfony/messenger
+                // stays optional.
+                ->addTag('kernel.event_listener', ['event' => DeferredSmsDelivery::WORKER_MESSAGE_HANDLED, 'method' => 'flush'])
+                ->addTag('kernel.event_listener', ['event' => DeferredSmsDelivery::WORKER_MESSAGE_FAILED, 'method' => 'discard']));
         }
 
         $container->setDefinition(SmsPasswordResetNotifier::class, (new Definition(SmsPasswordResetNotifier::class, [

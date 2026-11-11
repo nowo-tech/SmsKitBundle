@@ -12,8 +12,19 @@ use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
 use Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
 use Nowo\SmsKitBundle\Tests\Support\Numbers;
+use ReflectionProperty;
+use stdClass;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\ConsoleEvents;
+use Symfony\Component\Console\Event\ConsoleCommandEvent;
+use Symfony\Component\Console\Event\ConsoleTerminateEvent;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Event\WorkerMessageReceivedEvent;
 
 /**
  * The sender wired in a real kernel: providers from the registry, configuration from instance settings, the memo
@@ -47,6 +58,34 @@ final class SenderIntegrationTest extends KernelTestCase
 
         self::assertSame('log', $sender->getProviderId(), 'SettingsChangedEvent dropped the memo');
         self::assertSame('logged', $sender->send(new SmsMessage(Numbers::TO, 'hello'))->status);
+    }
+
+    /**
+     * 1.5.1 (kernel reset false): outside HTTP the memo has no request to bind to. A consumer or a command must not keep
+     * the configuration it read for its first message forever: settings saved by another process (no
+     * SettingsChangedEvent here) apply from the next message / command.
+     */
+    public function testTheMemoIsRebuiltPerMessengerMessageAndConsoleCommand(): void
+    {
+        $kernel   = $this->bootKernel();
+        $resolver = $this->container($kernel)->get(SmsConfigResolver::class);
+        self::assertInstanceOf(SmsConfigResolver::class, $resolver);
+        $dispatcher = $this->container($kernel)->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $memo    = new ReflectionProperty(SmsConfigResolver::class, 'config');
+        $command = new Command('app:digest');
+
+        $boundaries = [
+            'WorkerMessageReceivedEvent' => static fn (): object => $dispatcher->dispatch(new WorkerMessageReceivedEvent(new Envelope(new stdClass()), 'async'), WorkerMessageReceivedEvent::class),
+            'console.command'            => static fn (): object => $dispatcher->dispatch(new ConsoleCommandEvent($command, new ArrayInput([]), new NullOutput()), ConsoleEvents::COMMAND),
+            'console.terminate'          => static fn (): object => $dispatcher->dispatch(new ConsoleTerminateEvent($command, new ArrayInput([]), new NullOutput(), Command::SUCCESS), ConsoleEvents::TERMINATE),
+        ];
+        foreach ($boundaries as $name => $boundary) {
+            $resolver->current();
+            self::assertNotNull($memo->getValue($resolver), 'memoized outside HTTP');
+            $boundary();
+            self::assertNull($memo->getValue($resolver), $name . ' drops the memo');
+        }
     }
 
     public function testSecretsAreStoredEncryptedAndResolved(): void

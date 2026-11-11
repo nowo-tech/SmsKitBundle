@@ -31,6 +31,47 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Next patch: 1.5.1.
+
+### Fixed
+
+- **Deferred SMS held by Messenger consumers (REQ-RUNTIME-002):** with the default
+  `auth_kit.password_reset.delivery: deferred`, `DeferredSmsDelivery` sent its queue only at `kernel.terminate`,
+  `console.terminate` and `kernel.reset`. The stock `messenger:consume` runs `services_resetter` after every message,
+  which sends the queue through `reset()`, so it was not affected. A consumer run with `--no-reset` (or a host without
+  `services_resetter`, kernel reset false) held every SMS queued while a message was handled (for example the AuthKit
+  password-reset code from a host handler) until the consumer stopped; a clean stop (`--time-limit`, `--limit`,
+  `--memory-limit`, SIGTERM) sends them at `console.terminate`, a hard kill (OOM, SIGKILL) lost them. The queue is now
+  sent at `WorkerMessageHandledEvent` (event names as strings, `symfony/messenger` stays optional). Affected:
+  **1.0.0 to 1.5.0** with the AuthKit adapter, the default `deferred` delivery and a consumer run with `--no-reset` or
+  without `services_resetter`. HTTP requests and console commands were not affected.
+- **A failed Messenger message no longer sends its deferred SMS:** at `WorkerMessageFailedEvent` the queue of that
+  message is discarded (`DeferredSmsDelivery::discard()`, a notice logs only the count). Its work was rolled back (for
+  example the reset token under `doctrine_transaction`), so the SMS would carry a code that does not exist, and each
+  retry sent one more. The retry queues it again and sends exactly one when it is handled. Before, the stock consumer
+  sent it through `services_resetter` after the failure.
+- **`SmsConfigResolver` memo rebuilt outside HTTP:** without a main request the configuration memo was kept for the
+  whole consumer or command (only `SettingsChangedEvent` in the same process or `kernel.reset` cleared it), so with
+  kernel reset false a consumer kept the old provider, sender and credentials after an admin changed them in another
+  process (also after disabling SMS). SmsKit now drops its own memo at `WorkerMessageReceivedEvent`,
+  `console.command` and `console.terminate`. Configuration only, no user data. SmsKit only drops its own memo: the values come from InstanceSettings, which (1.13.0) keeps its rows in memory and
+  resets its private EntityManager only on `kernel.reset`. With `messenger:consume --no-reset` (kernel reset false) a
+  consumer therefore sees a provider or token saved by another process only with an InstanceSettings release that
+  clears its memo at the same boundaries (follow-up release), or after a worker restart.
+
+### Tests
+
+- `tests/Integration/Ddd/DeferredDeliveryWorkerTest.php`: one kept-alive kernel, no services resetter, 600 Messenger
+  messages for two users through the AuthKit adapter, one in five failing once and retried; a failed attempt sends
+  nothing, each message's SMS is sent exactly once, to its own user with its own code, when the message is handled;
+  memory margin 2 MiB; failed-without-retry and console terminate cases.
+- `SenderIntegrationTest::testTheMemoIsRebuiltPerMessengerMessageAndConsoleCommand` and `DeliveryTest` (`discard()`).
+
+### Documentation
+
+- `docs/FRANKENPHP-WORKER-AUDIT.md` refreshed for 1.5.1 (`DeferredSmsDelivery`, boundary events, worker tests);
+  CONFIGURATION and USAGE list the Messenger boundary.
+
 ## [1.5.0] - 2026-11-11
 
 Instance Settings and Doctrine are optional when the host provides the configuration ports; standard hosts unchanged. See [UPGRADING](https://github.com/nowo-tech/SmsKitBundle/blob/v1.5.0/docs/UPGRADING.md#to-150).

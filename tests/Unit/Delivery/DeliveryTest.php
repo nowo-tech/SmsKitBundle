@@ -89,6 +89,32 @@ final class DeliveryTest extends TestCase
         self::assertCount(2, $this->sent, 'reset sends what is left, once');
     }
 
+    public function testDeferredDiscardDropsTheQueueWithoutSendingAndLogsOnlyTheCount(): void
+    {
+        $logger   = new RecordingLogger();
+        $delivery = new DeferredSmsDelivery($this->safe(), $logger);
+        $delivery->discard();
+        self::assertSame([], $logger->records, 'nothing to discard, nothing logged');
+
+        $delivery->deliver(new SmsMessage(Numbers::TO, 'code 111111'));
+        $delivery->deliver(new SmsMessage(Numbers::OTHER, 'code 222222'));
+        $delivery->discard();
+        $delivery->flush();
+        $delivery->reset();
+
+        self::assertCount(0, $this->sent, 'a discarded SMS is never sent');
+        self::assertCount(1, $logger->records);
+        self::assertSame('notice', $logger->records[0]['level']);
+        self::assertSame(['count' => 2], $logger->records[0]['context']);
+
+        // Without a logger it stays silent.
+        $silent = new DeferredSmsDelivery($this->safe());
+        $silent->deliver(new SmsMessage(Numbers::TO, 'x'));
+        $silent->discard();
+        $silent->flush();
+        self::assertCount(0, $this->sent);
+    }
+
     public function testSyncSendsNow(): void
     {
         (new SyncSmsDelivery($this->safe()))->deliver(new SmsMessage(Numbers::TO, 'now'));

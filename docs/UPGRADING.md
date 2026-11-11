@@ -17,6 +17,16 @@
 
 ## Unreleased
 
+Next patch: 1.5.1. No configuration change. With the default `auth_kit.password_reset.delivery: deferred`, an SMS
+queued inside a Messenger message is now sent when that message is handled, even with `messenger:consume --no-reset`.
+When the message fails, the SMS it queued is **discarded** (not sent): the retry queues it again, so the user gets one
+SMS for the attempt that succeeded. If a host handler relied on an SMS going out although the handler then threw,
+send it from a message of its own or use `delivery: sync`. SmsKit's own `sms` configuration memo is dropped per
+Messenger message and per console command. SmsKit only drops its own memo: the values come from InstanceSettings, which (1.13.0) keeps its rows in memory and
+resets its private EntityManager only on `kernel.reset`. With `messenger:consume --no-reset` (kernel reset false) a
+consumer therefore sees a provider or token saved by another process only with an InstanceSettings release that
+clears its memo at the same boundaries (follow-up release), or after a worker restart.
+
 ## To 1.5.0
 
 Target **1.5.0**, from **1.4.0**: `composer update nowo-tech/sms-kit-bundle`. **Standard hosts: nothing to change**
