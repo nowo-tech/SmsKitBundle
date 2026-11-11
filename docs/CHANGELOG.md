@@ -31,6 +31,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Next patch: 1.5.1.
+
+### Fixed
+
+- **Deferred SMS held by Messenger consumers (REQ-RUNTIME-002):** with the default
+  `auth_kit.password_reset.delivery: deferred`, `DeferredSmsDelivery` sent its queue only at `kernel.terminate`,
+  `console.terminate` and `kernel.reset`. A Messenger consumer reaches none of them per message, so an SMS queued
+  while a message was handled (for example the AuthKit password-reset code from a host handler) waited until the
+  consumer process exited and was lost if the process was killed (OOM, `--time-limit` kill, deploy). The queue is now
+  also sent at `WorkerMessageHandledEvent` and `WorkerMessageFailedEvent` (event names as strings,
+  `symfony/messenger` stays optional). Affected: **1.0.0 to 1.5.0** (AuthKit adapter enabled with the default
+  `deferred` delivery, reset code requested from a Messenger consumer). HTTP requests and console commands were not
+  affected.
+
+### Tests
+
+- `tests/Integration/Ddd/DeferredDeliveryWorkerTest.php`: one kept-alive kernel, no services resetter, 600 Messenger
+  messages for two users (one in five failing) through the AuthKit adapter; each message's SMS is sent exactly once,
+  to its own user with its own code, when the message ends; memory margin 2 MiB; console terminate case.
+
+### Documentation
+
+- `docs/FRANKENPHP-WORKER-AUDIT.md` refreshed for 1.5.1 (`DeferredSmsDelivery`, boundary events, worker tests);
+  CONFIGURATION and USAGE list the Messenger boundary.
+
 ## [1.5.0] - 2026-11-11
 
 Instance Settings and Doctrine are optional when the host provides the configuration ports; standard hosts unchanged. See [UPGRADING](https://github.com/nowo-tech/SmsKitBundle/blob/v1.5.0/docs/UPGRADING.md#to-150).

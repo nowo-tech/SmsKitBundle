@@ -17,6 +17,10 @@
 
 ## Unreleased
 
+Next patch: 1.5.1. No configuration change. With the default `auth_kit.password_reset.delivery: deferred`, an SMS
+queued inside a Messenger message is now sent when that message is handled or fails, instead of when the consumer
+exits. A message that fails and is retried can queue its SMS again (one per attempt), as it would in an HTTP retry.
+
 ## To 1.5.0
 
 Target **1.5.0**, from **1.4.0**: `composer update nowo-tech/sms-kit-bundle`. **Standard hosts: nothing to change**

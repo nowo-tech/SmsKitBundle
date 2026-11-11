@@ -386,7 +386,11 @@ final class NowoSmsKitExtension extends Extension
             $container->setDefinition(DeferredSmsDelivery::class, (new Definition(DeferredSmsDelivery::class, [new Reference(SafeSender::class)]))
                 ->addTag('kernel.reset', ['method' => 'reset'])
                 ->addTag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => 'flush'])
-                ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'flush']));
+                ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'flush'])
+                // Messenger consumers never reach kernel.terminate: send what a message queued when it ends
+                // (event names as strings, symfony/messenger stays optional).
+                ->addTag('kernel.event_listener', ['event' => DeferredSmsDelivery::WORKER_MESSAGE_HANDLED, 'method' => 'flush'])
+                ->addTag('kernel.event_listener', ['event' => DeferredSmsDelivery::WORKER_MESSAGE_FAILED, 'method' => 'flush']));
         }
 
         $container->setDefinition(SmsPasswordResetNotifier::class, (new Definition(SmsPasswordResetNotifier::class, [

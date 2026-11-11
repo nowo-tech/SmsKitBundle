@@ -8,12 +8,18 @@ use Nowo\SmsKitBundle\Message\SmsMessage;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
- * Queues messages and sends them after the response (`delivery: deferred`, default): `kernel.terminate` (after
- * `Response::send()` / `fastcgi_finish_request()` on PHP-FPM and FrankenPHP) and `console.terminate`. The response
- * time of the triggering request no longer depends on the provider. `reset()` (kernel.reset) sends anything left.
+ * Queues messages and sends them after the unit of work (`delivery: deferred`, default): `kernel.terminate` (after
+ * `Response::send()` / `fastcgi_finish_request()` on PHP-FPM and FrankenPHP), the end of every Messenger message
+ * (`WorkerMessageHandledEvent` / `WorkerMessageFailedEvent`) and `console.terminate`. The response time of the
+ * triggering request no longer depends on the provider, and a Messenger consumer does not hold SMS until it exits.
+ * `reset()` (kernel.reset) sends anything left.
  */
 final class DeferredSmsDelivery implements SmsDeliveryInterface, ResetInterface
 {
+    /** Messenger event names (class names), listened to without requiring symfony/messenger. */
+    public const WORKER_MESSAGE_HANDLED = 'Symfony\Component\Messenger\Event\WorkerMessageHandledEvent';
+    public const WORKER_MESSAGE_FAILED  = 'Symfony\Component\Messenger\Event\WorkerMessageFailedEvent';
+
     /** @var list<SmsMessage> */
     private array $queue = [];
 
@@ -36,7 +42,7 @@ final class DeferredSmsDelivery implements SmsDeliveryInterface, ResetInterface
     }
 
     /**
-     * Sends the queued messages (kernel.terminate / console.terminate).
+     * Sends the queued messages (kernel.terminate, Messenger worker message handled / failed, console.terminate).
      */
     public function flush(): void
     {

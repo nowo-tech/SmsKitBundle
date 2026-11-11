@@ -40,6 +40,8 @@ use Nowo\SmsKitBundle\Settings\SmsFallbacks;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
+use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 
 final class NowoSmsKitExtensionTest extends TestCase
 {
@@ -146,7 +148,15 @@ final class NowoSmsKitExtensionTest extends TestCase
         self::assertSame('.inner', (string) $definition->getArgument(0));
         self::assertSame(DeferredSmsDelivery::class, (string) $definition->getArgument(1));
         self::assertTrue($container->getDefinition(DeferredSmsDelivery::class)->hasTag('kernel.reset'));
-        self::assertCount(2, $container->getDefinition(DeferredSmsDelivery::class)->getTag('kernel.event_listener'));
+        self::assertSame(
+            [
+                ['event' => 'kernel.terminate', 'method' => 'flush'],
+                ['event' => 'console.terminate', 'method' => 'flush'],
+                ['event' => WorkerMessageHandledEvent::class, 'method' => 'flush'],
+                ['event' => WorkerMessageFailedEvent::class, 'method' => 'flush'],
+            ],
+            $container->getDefinition(DeferredSmsDelivery::class)->getTag('kernel.event_listener'),
+        );
         self::assertSame(PropertyPhoneNumberResolver::class, (string) $container->getAlias(PhoneNumberResolverInterface::class));
         self::assertSame('mobile', $container->getDefinition(PropertyPhoneNumberResolver::class)->getArgument(0));
     }
