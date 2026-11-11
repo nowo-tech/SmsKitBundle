@@ -21,8 +21,9 @@ use function trim;
  * configuration (`nowo_sms_kit.default_provider`, `sender`, `providers.*`) for every value that is not stored.
  *
  * Worker-safe: the result is memoized for the current main request only (a new main request always rebuilds it, even
- * without `kernel.reset`), cleared by `kernel.reset` (Messenger workers) and by {@see SettingsChangedEvent} for the
- * `sms` section, so a provider switch or a new token applies to the very next send.
+ * without `kernel.reset`); outside HTTP it is rebuilt per Messenger message (`WorkerMessageReceivedEvent`) and per
+ * console command (`console.command` / `console.terminate`) since 1.5.1; it is also cleared by `kernel.reset` and by
+ * {@see SettingsChangedEvent} for the `sms` section, so a provider switch or a new token applies to the very next send.
  *
  * Default {@see SmsConfigProviderInterface} (1.4).
  */
@@ -88,7 +89,7 @@ final class SmsConfigResolver implements SmsConfigProviderInterface, ResetInterf
     }
 
     /**
-     * Clears the memo (kernel.reset and settings changes).
+     * Clears the memo (kernel.reset, settings changes, Messenger message start, console command start / end).
      */
     public function reset(): void
     {

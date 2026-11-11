@@ -18,8 +18,11 @@
 ## Unreleased
 
 Next patch: 1.5.1. No configuration change. With the default `auth_kit.password_reset.delivery: deferred`, an SMS
-queued inside a Messenger message is now sent when that message is handled or fails, instead of when the consumer
-exits. A message that fails and is retried can queue its SMS again (one per attempt), as it would in an HTTP retry.
+queued inside a Messenger message is now sent when that message is handled, even with `messenger:consume --no-reset`.
+When the message fails, the SMS it queued is **discarded** (not sent): the retry queues it again, so the user gets one
+SMS for the attempt that succeeded. If a host handler relied on an SMS going out although the handler then threw,
+send it from a message of its own or use `delivery: sync`. The `sms` configuration memo is rebuilt per Messenger
+message and per console command, so a consumer follows settings saved by another process.
 
 ## To 1.5.0
 

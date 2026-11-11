@@ -38,9 +38,10 @@ use function str_contains;
 /**
  * `delivery: deferred` (default) in a Messenger consumer with the kernel kept alive and no services resetter
  * (FrankenPHP worker / `messenger:consume`, kernel reset false): an AuthKit password-reset SMS queued while a message
- * is handled must be sent when that message ends (`WorkerMessageHandledEvent` / `WorkerMessageFailedEvent`), not
- * when the consumer process exits, and must never be sent with the next message. N = 600 messages for two users in
- * alternation (one in five failing), memory margin 2 MiB.
+ * is handled must be sent when that message is handled (`WorkerMessageHandledEvent`), not when the consumer process
+ * exits, and must never be sent with the next message. A failed attempt (`WorkerMessageFailedEvent`) discards its SMS
+ * (its reset token was rolled back) and the retry sends exactly one. N = 600 messages for two users in alternation
+ * (one in five failing once, then retried), memory margin 2 MiB.
  */
 final class DeferredDeliveryWorkerTest extends KernelTestCase
 {
@@ -71,15 +72,20 @@ final class DeferredDeliveryWorkerTest extends KernelTestCase
             $code     = sprintf('%06d', $i);
             $envelope = new Envelope(new stdClass());
 
+            if ($i % 5 === 0) {
+                // First attempt: the handler queues the SMS, then throws; the message will be retried.
+                $this->dispatch($kernel, new WorkerMessageReceivedEvent($envelope, 'async'), WorkerMessageReceivedEvent::class);
+                $notifier->notify($this->token($users[$key], 'X' . $code), $this->context($users[$key]));
+                $failed = new WorkerMessageFailedEvent($envelope, 'async', new RuntimeException('handler failed'));
+                $failed->setForRetry();
+                $this->dispatch($kernel, $failed, WorkerMessageFailedEvent::class);
+                self::assertSame([], $stub->sent, sprintf('Message %d: a failed attempt sends nothing', $i));
+            }
+
             $this->dispatch($kernel, new WorkerMessageReceivedEvent($envelope, 'async'), WorkerMessageReceivedEvent::class);
             $notifier->notify($this->token($users[$key], $code), $this->context($users[$key]));
             self::assertSame([], $stub->sent, sprintf('Message %d: deferred, nothing is sent while the message is handled', $i));
-
-            if ($i % 5 === 0) {
-                $this->dispatch($kernel, new WorkerMessageFailedEvent($envelope, 'async', new RuntimeException('handler failed')), WorkerMessageFailedEvent::class);
-            } else {
-                $this->dispatch($kernel, new WorkerMessageHandledEvent($envelope, 'async'), WorkerMessageHandledEvent::class);
-            }
+            $this->dispatch($kernel, new WorkerMessageHandledEvent($envelope, 'async'), WorkerMessageHandledEvent::class);
 
             self::assertCount(1, $stub->sent, sprintf('Message %d: its SMS is sent when the message ends, exactly once', $i));
             self::assertSame($key === 'A' ? Numbers::TO : Numbers::OTHER, $stub->sent[0]->to, sprintf('Message %d: sent to its own user', $i));
@@ -94,6 +100,26 @@ final class DeferredDeliveryWorkerTest extends KernelTestCase
 
         // The next message boundary has nothing left to send (no SMS carried over).
         $this->dispatch($kernel, new WorkerMessageHandledEvent(new Envelope(new stdClass()), 'async'), WorkerMessageHandledEvent::class);
+        self::assertSame([], $stub->sent);
+    }
+
+    public function testAFailedMessageWithoutRetryDiscardsItsSms(): void
+    {
+        $kernel   = $this->bootDeferred();
+        $notifier = $this->container($kernel)->get(PasswordResetNotifierInterface::class);
+        self::assertInstanceOf(SmsPasswordResetNotifier::class, $notifier);
+        $stub = $this->container($kernel)->get(StubProvider::class);
+        self::assertInstanceOf(StubProvider::class, $stub);
+        $user     = $this->user(Numbers::TO);
+        $envelope = new Envelope(new stdClass());
+
+        $this->dispatch($kernel, new WorkerMessageReceivedEvent($envelope, 'async'), WorkerMessageReceivedEvent::class);
+        $notifier->notify($this->token($user, '424242'), $this->context($user));
+        $this->dispatch($kernel, new WorkerMessageFailedEvent($envelope, 'async', new RuntimeException('handler failed')), WorkerMessageFailedEvent::class);
+
+        // Nothing now, and nothing left for a later boundary or the resetter either.
+        $this->dispatch($kernel, new WorkerMessageHandledEvent(new Envelope(new stdClass()), 'async'), WorkerMessageHandledEvent::class);
+        $this->dispatch($kernel, new ConsoleTerminateEvent(new Command('messenger:consume'), new ArrayInput([]), new NullOutput(), Command::SUCCESS), ConsoleEvents::TERMINATE);
         self::assertSame([], $stub->sent);
     }
 

@@ -7,6 +7,7 @@ namespace Nowo\SmsKitBundle\Tests\Unit\DependencyInjection;
 use LogicException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\InstanceSettingsBundle\DependencyInjection\NowoInstanceSettingsExtension;
+use Nowo\InstanceSettingsBundle\Event\SettingsChangedEvent;
 use Nowo\InstanceSettingsBundle\NowoInstanceSettingsBundle;
 use Nowo\InstanceSettingsBundle\Settings\InstanceSettingsInterface;
 use Nowo\SmsKitBundle\AuthKit\PhoneNumberResolverInterface;
@@ -42,6 +43,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
+use Symfony\Component\Messenger\Event\WorkerMessageReceivedEvent;
 
 final class NowoSmsKitExtensionTest extends TestCase
 {
@@ -71,6 +73,15 @@ final class NowoSmsKitExtensionTest extends TestCase
         self::assertTrue($container->getDefinition(SmsSettingsSection::class)->getArgument(3));
         self::assertSame([['command' => 'nowo:sms:send']], $container->getDefinition(SendSmsCommand::class)->getTag('console.command'));
         self::assertTrue($container->getDefinition(SmsConfigResolver::class)->hasTag('kernel.reset'));
+        self::assertSame(
+            [
+                ['event' => SettingsChangedEvent::class, 'method' => 'onSettingsChanged'],
+                ['event' => WorkerMessageReceivedEvent::class, 'method' => 'reset'],
+                ['event' => 'console.command', 'method' => 'reset'],
+                ['event' => 'console.terminate', 'method' => 'reset'],
+            ],
+            $container->getDefinition(SmsConfigResolver::class)->getTag('kernel.event_listener'),
+        );
         self::assertTrue($container->getDefinition(SmsKitRouteLoader::class)->hasTag('routing.loader'));
         self::assertTrue($container->hasDefinition(NowoSmsKitExtension::TEST_RATE_LIMITER));
         self::assertFalse($container->getDefinition(SendTestSmsController::class)->isAutoconfigured());
@@ -153,7 +164,7 @@ final class NowoSmsKitExtensionTest extends TestCase
                 ['event' => 'kernel.terminate', 'method' => 'flush'],
                 ['event' => 'console.terminate', 'method' => 'flush'],
                 ['event' => WorkerMessageHandledEvent::class, 'method' => 'flush'],
-                ['event' => WorkerMessageFailedEvent::class, 'method' => 'flush'],
+                ['event' => WorkerMessageFailedEvent::class, 'method' => 'discard'],
             ],
             $container->getDefinition(DeferredSmsDelivery::class)->getTag('kernel.event_listener'),
         );
