@@ -53,8 +53,11 @@ Next patch: 1.5.1.
 - **`SmsConfigResolver` memo rebuilt outside HTTP:** without a main request the configuration memo was kept for the
   whole consumer or command (only `SettingsChangedEvent` in the same process or `kernel.reset` cleared it), so with
   kernel reset false a consumer kept the old provider, sender and credentials after an admin changed them in another
-  process (also after disabling SMS). It is now rebuilt at `WorkerMessageReceivedEvent`, `console.command` and
-  `console.terminate`. Configuration only, no user data.
+  process (also after disabling SMS). SmsKit now drops its own memo at `WorkerMessageReceivedEvent`,
+  `console.command` and `console.terminate`. Configuration only, no user data. SmsKit only drops its own memo: the values come from InstanceSettings, which (1.13.0) keeps its rows in memory and
+  resets its private EntityManager only on `kernel.reset`. With `messenger:consume --no-reset` (kernel reset false) a
+  consumer therefore sees a provider or token saved by another process only with an InstanceSettings release that
+  clears its memo at the same boundaries (follow-up release), or after a worker restart.
 
 ### Tests
 

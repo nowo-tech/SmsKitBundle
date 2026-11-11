@@ -6,7 +6,7 @@
 | Audited revision | `1.5.0` + fix for 1.5.1 (REQ-RUNTIME-002 sweep, batch A1); first audit `1.0.0` |
 | Audit date | 2026-11-11 (first audit 2026-10-31) |
 | Method | Manual review of every file under `src/`; PHPStan `ruleset-classic` + `ruleset-worker`; Igor (`composer igor`); unit test of the request-bound memo and of the `SettingsChangedEvent` reset; kernel test (save → next send uses the new provider); demo run in worker mode |
-| Remediation (2026-11-11, 1.5.1) | `DeferredSmsDelivery` (default AuthKit `delivery: deferred`) is also flushed at `WorkerMessageHandledEvent` and discarded at `WorkerMessageFailedEvent`; before, a consumer run with `--no-reset` held queued SMS until it stopped (affected 1.0.0 to 1.5.0). `SmsConfigResolver` is rebuilt per Messenger message and console command (before: kept for the whole consumer without a main request) |
+| Remediation (2026-11-11, 1.5.1) | `DeferredSmsDelivery` (default AuthKit `delivery: deferred`) is also flushed at `WorkerMessageHandledEvent` and discarded at `WorkerMessageFailedEvent`; before, a consumer run with `--no-reset` held queued SMS until it stopped (affected 1.0.0 to 1.5.0). `SmsConfigResolver` drops its memo per Messenger message and console command (before: kept for the whole consumer without a main request); the values still come from InstanceSettings, see [Boundary events](#boundary-events) |
 | **Verdict** | ✅ **Viable with kernel reset false (REQ-RUNTIME-002)** — one configuration memo bound to the main request in HTTP (rebuilt on every new request even without a reset) and rebuilt per Messenger message / console command outside HTTP, dropped by `SettingsChangedEvent`, the deferred SMS queue flushed by the bundle at every unit-of-work boundary, an immutable provider registry and the route loader's load-once flag; no request, user or message data survives a request or a Messenger message |
 
 ## Table of contents
@@ -66,6 +66,11 @@ A bundle safe under **B** is safe under **A**, classic mode and PHP-FPM.
 | `SmsConfigResolver` memo | a new main request (memo keyed by a `WeakReference` to it); outside HTTP `WorkerMessageReceivedEvent`, `console.command`, `console.terminate` (1.5.1); `SettingsChangedEvent` (`sms`), `kernel.reset` | the bundle |
 | `DeferredSmsDelivery::$queue` | sent at `kernel.terminate`, `WorkerMessageHandledEvent`, `console.terminate` (`flush()`) and `kernel.reset` (`reset()`); discarded at `WorkerMessageFailedEvent` (`discard()`) | the bundle (`kernel.event_listener` tags; Messenger event names as strings, Messenger optional) |
 
+SmsKit only drops its own memo: the values come from InstanceSettings, which (1.13.0) keeps its rows in memory and
+resets its private EntityManager only on `kernel.reset`. With `messenger:consume --no-reset` (kernel reset false) a
+consumer therefore sees a provider or token saved by another process only with an InstanceSettings release that
+clears its memo at the same boundaries (follow-up release), or after a worker restart.
+
 A failed message discards the SMS it queued (its work was rolled back); the retry queues it again and sends exactly one
 when it is handled.
 
@@ -83,6 +88,7 @@ Both boot **one** kernel and never call `services_resetter` (kernel reset false)
   margin 2 MiB after 100 warm-up messages. Also a failed message without retry and `console.terminate`.
 - `tests/Integration/Kernel/SenderIntegrationTest.php::testTheMemoIsRebuiltPerMessengerMessageAndConsoleCommand`:
   the `SmsConfigResolver` memo is dropped at `WorkerMessageReceivedEvent`, `console.command` and `console.terminate`.
+  It checks SmsKit's memo only, not a fresh read through InstanceSettings.
 
 Static checks: `composer igor` and the `nowo-tech/phpstan-frankenphp` worker ruleset pass in CI.
 
