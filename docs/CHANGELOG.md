@@ -6,30 +6,36 @@ All notable changes to this project are documented here. The format follows
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.5.1] - 2026-11-11](#151---2026-11-11)
+  - [Fixed](#fixed)
+  - [Tests](#tests)
+  - [Documentation](#documentation)
 - [[1.5.0] - 2026-11-11](#150---2026-11-11)
   - [Target 1.5.0](#target-150)
 - [[1.4.0] - 2026-11-10](#140---2026-11-10)
   - [Added](#added-1)
   - [Changed](#changed-1)
-  - [Documentation](#documentation)
+  - [Documentation](#documentation-1)
 - [[1.3.0] - 2026-11-02](#130---2026-11-02)
   - [Added](#added-2)
   - [Changed](#changed-2)
 - [[1.2.0] - 2026-11-02](#120---2026-11-02)
   - [Added](#added-3)
   - [Changed](#changed-3)
-  - [Documentation](#documentation-1)
+  - [Documentation](#documentation-2)
 - [[1.1.0] - 2026-11-01](#110---2026-11-01)
   - [Added](#added-4)
   - [Changed](#changed-4)
-  - [Fixed](#fixed)
-  - [Documentation](#documentation-2)
+  - [Fixed](#fixed-1)
+  - [Documentation](#documentation-3)
 - [[1.0.0] - 2026-10-31](#100---2026-10-31)
   - [Added](#added-5)
   - [Changed](#changed-5)
   - [Security](#security)
 
 ## [Unreleased]
+
+## [1.5.1] - 2026-11-11
 
 Next patch: 1.5.1.
 

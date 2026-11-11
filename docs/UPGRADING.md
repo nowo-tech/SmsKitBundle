@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.5.1](#to-151)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [To 1.3.0](#to-130)
@@ -16,6 +17,14 @@
   - [Breaking changes](#breaking-changes)
 
 ## Unreleased
+
+## To 1.5.1
+
+From **1.5.0**:
+
+```bash
+composer update nowo-tech/sms-kit-bundle
+```
 
 Next patch: 1.5.1. No configuration change. With the default `auth_kit.password_reset.delivery: deferred`, an SMS
 queued inside a Messenger message is now sent when that message is handled, even with `messenger:consume --no-reset`.
