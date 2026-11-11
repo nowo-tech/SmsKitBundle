@@ -14,7 +14,7 @@
 
 - PHP `>=8.2 <8.6` (Symfony 8.x requires PHP 8.4+)
 - Symfony 7.4, 8.0 or 8.1: FrameworkBundle (HttpClient enabled), RateLimiter, Form, Validator, Security CSRF, Console; **SecurityBundle** for the admin UI of InstanceSettingsBundle
-- `nowo-tech/instance-settings-bundle` ^1.0 — stores the `sms` section (Doctrine ORM + `nowo-tech/doctrine-encrypt-bundle` for the encrypted tokens)
+- `nowo-tech/instance-settings-bundle` ^1.0 — stores the `sms` section (Doctrine ORM + `nowo-tech/doctrine-encrypt-bundle` for the encrypted tokens). Since 1.5 registering it is optional: without it the configuration comes from `nowo_sms_kit.config_provider` or the bundle configuration ([USAGE](USAGE.md#using-it-from-a-ddd--hexagonal-application))
 - `nowo-tech/outbound-url-guard-bundle` ^1.3 (endpoint guard), `nowo-tech/form-kit-bundle` ^2.17 (CSRF-only form of the send-test action), `nowo-tech/ui-kit-bundle` ^2.17.5 (action view model) — all installed as dependencies
 - Optional: `nowo-tech/auth-kit-bundle` ^1.31 (password-reset SMS adapter)
 

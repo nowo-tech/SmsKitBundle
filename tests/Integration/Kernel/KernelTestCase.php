@@ -19,6 +19,7 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
 use function count;
+use function in_array;
 
 /**
  * Boots a fresh {@see SmsKitTestKernel} per call (own cache dir, schema created on the in-memory database).
@@ -43,19 +44,25 @@ abstract class KernelTestCase extends TestCase
      * @param Closure(RoutingConfigurator): void|null $routes routes (default: both bundle loaders)
      * @param list<string> $without bundles to leave out
      * @param array<string, string> $parameters container parameters
+     * @param Closure(ContainerConfigurator): void|null $extra extra container configuration
      */
-    protected function bootKernel(array $config = [], array $settingsConfig = [], ?Closure $routes = null, array $without = [], array $parameters = []): SmsKitTestKernel
+    protected function bootKernel(array $config = [], array $settingsConfig = [], ?Closure $routes = null, array $without = [], array $parameters = [], ?Closure $extra = null): SmsKitTestKernel
     {
         $id     = (string) preg_replace('/\W+/', '_', static::class . '_' . $this->name() . '_' . count($this->kernels));
         $kernel = new SmsKitTestKernel(
             $id,
-            static function (ContainerConfigurator $container) use ($config, $settingsConfig, $parameters): void {
+            static function (ContainerConfigurator $container) use ($config, $settingsConfig, $parameters, $without, $extra): void {
                 foreach ($parameters as $name => $value) {
                     $container->parameters()->set($name, $value);
                 }
-                $container->extension('nowo_instance_settings', $settingsConfig);
+                if (!in_array('instance_settings', $without, true)) {
+                    $container->extension('nowo_instance_settings', $settingsConfig);
+                }
                 $container->extension('nowo_sms_kit', $config);
                 $container->services()->set('logger', RecordingLogger::class)->public();
+                if ($extra instanceof Closure) {
+                    $extra($container);
+                }
             },
             $routes ?? static function (RoutingConfigurator $routes): void {
                 $routes->import('.', 'nowo_instance_settings');
@@ -65,6 +72,9 @@ abstract class KernelTestCase extends TestCase
         );
         $this->kernels[] = $kernel;
         $kernel->boot();
+        if (in_array('doctrine', $without, true)) {
+            return $kernel;
+        }
 
         $doctrine = $kernel->getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $doctrine);

@@ -40,6 +40,7 @@ use Nowo\SmsKitBundle\Settings\FallbackSmsConfigProvider;
 use Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface;
 use Nowo\SmsKitBundle\Settings\SmsConfigResolver;
 use Nowo\SmsKitBundle\Settings\SmsConfigStatus;
+use Nowo\SmsKitBundle\Settings\SmsConfigStatusInterface;
 use Nowo\SmsKitBundle\Settings\SmsFallbacks;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -64,11 +65,19 @@ use function sprintf;
 /**
  * Loads `nowo_sms_kit`: providers and their registry, the guarded HTTP client, the configuration resolver, the sender,
  * the `sms` settings section, the CLI, and (when enabled) the send-test action and the AuthKit adapter.
+ *
+ * 1.5 (architecture bar rule 8): Instance Settings is optional. Without NowoInstanceSettingsBundle the settings
+ * resolver, the `sms` section and the send-test action (it lives on that settings page) are not registered, and the
+ * configuration comes from `config_provider` (a host service) or, by default, from the bundle configuration
+ * ({@see FallbackSmsConfigProvider}). No Doctrine is needed then.
  */
 final class NowoSmsKitExtension extends Extension
 {
     /** Service id of the rate limiter factory of the send-test action. */
     public const TEST_RATE_LIMITER = 'nowo_sms_kit.send_test.rate_limiter';
+
+    /** Container parameter: true when the configuration is read from Instance Settings (1.5). */
+    public const INSTANCE_SETTINGS_PARAMETER = 'nowo_sms_kit.instance_settings';
 
     /**
      * @param string $authKitNotifierInterface AuthKit notifier interface the adapter decorates (overridable in tests)
@@ -100,15 +109,21 @@ final class NowoSmsKitExtension extends Extension
         $this->assertLiteralBooleans($config);
 
         /* @var array{default_provider: string, sender: string|null, config_provider: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int}, destinations: array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string, messenger_failures: string}}} $config */
-        $container->setParameter('nowo_sms_kit.test_action.enabled', $config['test_action']['enabled']);
-        $container->setParameter('nowo_sms_kit.test_action.path', $config['test_action']['path']);
+        $settings   = $this->hasInstanceSettings($container);
+        $testAction = $config['test_action'];
+        // The send-test action is a button of the Instance Settings `sms` page: without that bundle there is no page.
+        $testAction['enabled'] = $testAction['enabled'] && $settings;
+
+        $container->setParameter(self::INSTANCE_SETTINGS_PARAMETER, $settings);
+        $container->setParameter('nowo_sms_kit.test_action.enabled', $testAction['enabled']);
+        $container->setParameter('nowo_sms_kit.test_action.path', $testAction['path']);
 
         $container->registerForAutoconfiguration(SmsProviderInterface::class)->addTag(NowoSmsKitBundle::PROVIDER_TAG);
 
         $this->registerProviders($container, $config['http'], $config['providers']);
         $this->registerDestinations($container, $config['destinations']);
-        $this->registerSender($container, $config['default_provider'], $config['sender'], $config['providers'], $config['test_action']['enabled'], $config['config_provider']);
-        $this->registerTestAction($container, $config['test_action']);
+        $this->registerSender($container, $config['default_provider'], $config['sender'], $config['providers'], $testAction['enabled'], $config['config_provider'], $settings);
+        $this->registerTestAction($container, $testAction);
         $this->registerAuthKit($container, $config['auth_kit']['password_reset']);
     }
 
@@ -160,9 +175,11 @@ final class NowoSmsKitExtension extends Extension
      * @param string|null $sender `sender`
      * @param array{twilio: array{api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}} $providers `providers`
      * @param bool $testAction `test_action.enabled`
-     * @param string|null $configProvider `config_provider` (null = the settings resolver)
+     * @param string|null $configProvider `config_provider` (null = the settings resolver, or the bundle configuration
+     *                                    without Instance Settings)
+     * @param bool $settings NowoInstanceSettingsBundle registered
      */
-    private function registerSender(ContainerBuilder $container, string $defaultProvider, ?string $sender, array $providers, bool $testAction, ?string $configProvider = null): void
+    private function registerSender(ContainerBuilder $container, string $defaultProvider, ?string $sender, array $providers, bool $testAction, ?string $configProvider = null, bool $settings = true): void
     {
         $twilio = $providers['twilio'];
         $bridge = $providers['sms_bridge'];
@@ -181,25 +198,29 @@ final class NowoSmsKitExtension extends Extension
             $bridge['device_id'],
         ]));
 
-        $container->setDefinition(SmsConfigResolver::class, (new Definition(SmsConfigResolver::class, [
-            new Reference(InstanceSettingsInterface::class),
-            new Reference(SmsFallbacks::class),
-            new Reference('request_stack', ContainerInterface::NULL_ON_INVALID_REFERENCE),
-        ]))
-            ->addTag('kernel.reset', ['method' => 'reset'])
-            ->addTag('kernel.event_listener', ['event' => SettingsChangedEvent::class, 'method' => 'onSettingsChanged']));
-        // 1.4 (DDD P2): the configuration source is a port; the settings resolver stays the default.
+        if ($settings) {
+            $container->setDefinition(SmsConfigResolver::class, (new Definition(SmsConfigResolver::class, [
+                new Reference(InstanceSettingsInterface::class),
+                new Reference(SmsFallbacks::class),
+                new Reference('request_stack', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ]))
+                ->addTag('kernel.reset', ['method' => 'reset'])
+                ->addTag('kernel.event_listener', ['event' => SettingsChangedEvent::class, 'method' => 'onSettingsChanged']));
+        }
+        // 1.4 (DDD P2): the configuration source is a port; the settings resolver stays the default. 1.5: without
+        // Instance Settings the default is the bundle configuration.
         $container->setDefinition(FallbackSmsConfigProvider::class, new Definition(FallbackSmsConfigProvider::class, [new Reference(SmsFallbacks::class)]));
         $custom = is_string($configProvider) && $configProvider !== '';
-        $container->setAlias(SmsConfigProviderInterface::class, $custom ? $configProvider : SmsConfigResolver::class);
+        $container->setAlias(SmsConfigProviderInterface::class, $custom ? $configProvider : ($settings ? SmsConfigResolver::class : FallbackSmsConfigProvider::class));
 
         // Public: host health / status pages read it.
         $container->setDefinition(SmsConfigStatus::class, (new Definition(SmsConfigStatus::class, [
             new Reference(SmsConfigProviderInterface::class),
             new Reference(SmsProviderRegistry::class),
             // "No provider chosen yet" is a property of the settings store only.
-            $custom ? null : new Reference(InstanceSettingsInterface::class),
+            $custom || !$settings ? null : new Reference(InstanceSettingsInterface::class),
         ]))->setPublic(true));
+        $container->setAlias(SmsConfigStatusInterface::class, SmsConfigStatus::class)->setPublic(true);
 
         $container->setDefinition(ConfiguredSmsSender::class, (new Definition(ConfiguredSmsSender::class, [
             new Reference(SmsProviderRegistry::class),
@@ -210,6 +231,22 @@ final class NowoSmsKitExtension extends Extension
         ]))->addTag('monolog.logger', ['channel' => 'sms']));
         $container->setAlias(SmsSenderInterface::class, ConfiguredSmsSender::class)->setPublic(true);
 
+        if ($settings) {
+            $this->registerSettingsSection($container, $testAction);
+        }
+
+        $container->setDefinition(SendSmsCommand::class, (new Definition(SendSmsCommand::class, [
+            new Reference(SmsSenderInterface::class),
+        ]))->addTag('console.command', ['command' => SendSmsCommand::NAME]));
+    }
+
+    /**
+     * The `sms` Instance Settings section (only with NowoInstanceSettingsBundle).
+     *
+     * @param bool $testAction effective `test_action.enabled`
+     */
+    private function registerSettingsSection(ContainerBuilder $container, bool $testAction): void
+    {
         $container->setDefinition(SmsSettingsSection::class, (new Definition(SmsSettingsSection::class, [
             new Reference(SmsProviderRegistry::class),
             new Reference('router', ContainerInterface::NULL_ON_INVALID_REFERENCE),
@@ -218,10 +255,16 @@ final class NowoSmsKitExtension extends Extension
             new Reference(SmsFallbacks::class),
             new ServiceClosureArgument(new Reference(SmsConfigStatus::class)),
         ]))->addTag(NowoInstanceSettingsBundle::SECTION_TAG));
+    }
 
-        $container->setDefinition(SendSmsCommand::class, (new Definition(SendSmsCommand::class, [
-            new Reference(SmsSenderInterface::class),
-        ]))->addTag('console.command', ['command' => SendSmsCommand::NAME]));
+    /**
+     * NowoInstanceSettingsBundle is registered (or its extension is loaded).
+     */
+    private function hasInstanceSettings(ContainerBuilder $container): bool
+    {
+        $bundles = $container->hasParameter('kernel.bundles') ? $container->getParameter('kernel.bundles') : [];
+
+        return (is_array($bundles) && isset($bundles['NowoInstanceSettingsBundle'])) || $container->hasExtension('nowo_instance_settings');
     }
 
     /**

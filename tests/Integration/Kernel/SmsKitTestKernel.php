@@ -36,7 +36,8 @@ final class SmsKitTestKernel extends Kernel
     /**
      * @param Closure(ContainerConfigurator): void $services extension configs and services
      * @param Closure(RoutingConfigurator): void $routes routes
-     * @param list<string> $without bundle short names to leave out (outbound_url_guard)
+     * @param list<string> $without bundle short names to leave out (outbound_url_guard; instance_settings; doctrine =
+     *                              DoctrineBundle and DoctrineEncrypt, i.e. no ORM)
      */
     public function __construct(
         private readonly string $id,
@@ -53,11 +54,15 @@ final class SmsKitTestKernel extends Kernel
         yield new SecurityBundle();
         yield new TwigBundle();
         yield new TwigExtraBundle();
-        yield new DoctrineBundle();
-        yield new NowoDoctrineEncryptBundle();
+        if (!in_array('doctrine', $this->without, true)) {
+            yield new DoctrineBundle();
+            yield new NowoDoctrineEncryptBundle();
+        }
         yield new NowoFormKitBundle();
         yield new NowoUiKitBundle();
-        yield new NowoInstanceSettingsBundle();
+        if (!in_array('instance_settings', $this->without, true)) {
+            yield new NowoInstanceSettingsBundle();
+        }
         if (!in_array('outbound_url_guard', $this->without, true)) {
             yield new NowoOutboundUrlGuardBundle();
         }
@@ -101,16 +106,18 @@ final class SmsKitTestKernel extends Kernel
             'router'                => ['utf8' => true],
         ]);
         $container->extension('twig', ['strict_variables' => true]);
-        $container->extension('doctrine', [
-            'dbal' => ['url' => 'sqlite:///:memory:'],
-            'orm'  => [],
-        ]);
-        $container->extension('nowo_doctrine_encrypt', [
-            'default_profile'      => 'default',
-            'secret_permissions'   => ['enabled' => false],
-            'generate_missing_key' => true,
-            'profiles'             => ['default' => ['encryptor_class' => 'Halite', 'secret_directory_path' => self::baseDir() . '/' . $this->id . '/keys']],
-        ]);
+        if (!in_array('doctrine', $this->without, true)) {
+            $container->extension('doctrine', [
+                'dbal' => ['url' => 'sqlite:///:memory:'],
+                'orm'  => [],
+            ]);
+            $container->extension('nowo_doctrine_encrypt', [
+                'default_profile'      => 'default',
+                'secret_permissions'   => ['enabled' => false],
+                'generate_missing_key' => true,
+                'profiles'             => ['default' => ['encryptor_class' => 'Halite', 'secret_directory_path' => self::baseDir() . '/' . $this->id . '/keys']],
+            ]);
+        }
         $container->extension('security', [
             'password_hashers' => ['Symfony\Component\Security\Core\User\InMemoryUser' => 'plaintext'],
             'providers'        => ['memory' => ['memory' => ['users' => [
