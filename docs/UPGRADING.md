@@ -5,7 +5,6 @@
 - [Unreleased](#unreleased)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
-  - [To 1.4.0](#to-140-1)
 - [To 1.3.0](#to-130)
 - [To 1.2.0](#to-120)
   - [To 1.2.0](#to-120-1)
@@ -41,9 +40,7 @@ From **1.3.0**:
 composer update nowo-tech/sms-kit-bundle
 ```
 
-### To 1.4.0
-
-Target **1.4.0**, from **1.3.0**: `composer update nowo-tech/sms-kit-bundle`. Nothing changes by default.
+Nothing changes by default.
 
 1. **Optional configuration port.** Set `nowo_sms_kit.config_provider` to a service implementing
    `Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface` to take provider, sender and credentials from your own
