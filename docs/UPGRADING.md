@@ -3,7 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
-  - [To 1.5.0](#to-150)
+- [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
   - [To 1.4.0](#to-140-1)
 - [To 1.3.0](#to-130)
@@ -18,7 +18,7 @@
 
 ## Unreleased
 
-### To 1.5.0
+## To 1.5.0
 
 Target **1.5.0**, from **1.4.0**: `composer update nowo-tech/sms-kit-bundle`. **Standard hosts: nothing to change**
 (Instance Settings registered → same services, same defaults).
