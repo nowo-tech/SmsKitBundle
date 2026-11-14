@@ -101,7 +101,7 @@ final class SmsSettingsSection extends AbstractSettingsSection implements Settin
     /**
      * `tabler:message-2`.
      */
-    public function getIcon(): ?string
+    public function getIcon(): string
     {
         return 'tabler:message-2';
     }
