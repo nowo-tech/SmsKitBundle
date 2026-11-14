@@ -35,6 +35,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The InstanceSettings tab of the SMS section now has an icon (`tabler:message-2`).
+
 ## [1.5.1] - 2026-11-11
 
 Next patch: 1.5.1.

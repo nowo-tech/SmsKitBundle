@@ -47,7 +47,7 @@ final class SmsSettingsSectionTest extends TestCase
         self::assertSame('settings.sms.label', $section->getLabel());
         self::assertSame('NowoSmsKitBundle', $section->getTranslationDomain());
         self::assertSame('settings.sms.intro', $section->getIntro());
-        self::assertNull($section->getIcon());
+        self::assertSame('tabler:message-2', $section->getIcon());
 
         $fields = [];
         foreach ($section->getFields() as $field) {
