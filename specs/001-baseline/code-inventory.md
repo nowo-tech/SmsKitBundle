@@ -1,6 +1,6 @@
 # Code inventory — 001-baseline
 
-**Last audited**: 2026-11-02
+**Last audited**: 2026-11-16
 **Scope**: every production file under `src/` (`find src -type f | wc -l`). Tests, demo and generated caches are out of scope.
 
 ## Bundle and dependency injection
@@ -56,6 +56,9 @@
 | `src/Settings/SmsFallbacks.php` | Settings | FR-SET-002 |
 | `src/Settings/SmsConfigResolver.php` | Settings | FR-SET-003 |
 | `src/Settings/SmsConfigStatus.php` | Settings | FR-DBO-003 ([002](../002-db-only-seed/spec.md)), FR-SMSVIS-002 ([003](../003-provider-dependent-fields/spec.md)) |
+| `src/Settings/SmsConfigProviderInterface.php` | Settings | FR-SET-004 |
+| `src/Settings/FallbackSmsConfigProvider.php` | Settings | FR-SET-005 |
+| `src/Settings/SmsConfigStatusInterface.php` | Settings | FR-SET-006 |
 
 ## HTTP action and CLI
 
@@ -106,9 +109,9 @@
 | Sender, messages, exceptions | 7 |
 | Providers | 6 |
 | HTTP and redaction | 6 |
-| Settings | 5 |
+| Settings | 8 |
 | HTTP action and CLI | 3 |
 | AuthKit adapter | 3 |
 | Destination policy and deliveries | 8 |
 | Translations | 7 |
-| **Total production sources** | **50 / 50** (`find src -type f \| wc -l` = 50) |
+| **Total production sources** | **53 / 53** (`find src -type f \| wc -l` = 53) |
