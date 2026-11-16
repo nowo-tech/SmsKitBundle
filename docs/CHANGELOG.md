@@ -37,6 +37,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Demo
+
+- The demo is built on UiKit and FormKit (REQ-DEMO-014/015): the base template extends the UiKit admin layout with UiKit's default theme (no Bootstrap / Bootstrap Icons CDN, no demo admin bridge), the send form is a FormKit form themed by the `demo` profile and UiKit's form theme. The demo requires `nowo-tech/ui-kit-bundle` ^2.49 and `nowo-tech/form-kit-bundle` ^2.22.
+
 ## [1.5.2] - 2026-11-14
 
 ### Added
