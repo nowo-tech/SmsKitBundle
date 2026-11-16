@@ -117,6 +117,9 @@ and the reset flow continues.
 - **FR-SET-001** — `SmsSettingsSection` (`sms`, domain `NowoSmsKitBundle`): 11 fields (2 secrets) with validation; send-test action when enabled.
 - **FR-SET-002** — `SmsConfig` / `SmsFallbacks`: effective values; secrets masked in debug output.
 - **FR-SET-003** — `SmsConfigResolver`: stored value, else fallback; provider-name normalization; memo bound to the main request; reset on `kernel.reset` and `SettingsChangedEvent` (`sms`).
+- **FR-SET-004** — `SmsConfigProviderInterface` (1.4, DDD port): source of the effective `SmsConfig` of a send, called on every send; `nowo_sms_kit.config_provider` selects the service (default `SmsConfigResolver`).
+- **FR-SET-005** — `FallbackSmsConfigProvider`: reads only the bundle configuration (`default_provider`, `sender`, `providers.*`), never the `sms` section; no test recipient; stateless.
+- **FR-SET-006** — `SmsConfigStatusInterface` (1.5): port of the configuration status for host health pages (active provider, missing required field names, never a value), aliased to `SmsConfigStatus`.
 
 ### HTTP action and CLI
 
@@ -144,7 +147,7 @@ and the reset flow continues.
 
 - **SC-001** — PHPUnit green on PHP 8.2–8.5 × Symfony 7.4 / 8.1; statement and element coverage of `src/` 100%, no exclusions.
 - **SC-002** — PHPStan level 8 with the FrankenPHP classic + worker rulesets, Igor, Rector dry-run, PHP-CS-Fixer clean.
-- **SC-003** — The code inventory maps **49/49** production files under `src/` (42 PHP, 7 translation catalogues).
+- **SC-003** — The code inventory maps **53/53** production files under `src/` (46 PHP, 7 translation catalogues).
 - **SC-004** — Demo boots (HTTP 200) and the Playwright e2e sends a test SMS through the log provider.
 - **SC-005** — No log record, flash or exception produced by the bundle contains a full phone number, a body or a credential (tests assert it on the sender, the log provider, the HTTP client and the action).
 
