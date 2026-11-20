@@ -22,7 +22,7 @@
 ```yaml
 # config/packages/nowo_sms_kit.yaml (defaults shown)
 nowo_sms_kit:
-    default_provider: 'null'          # provider while sms.provider is not stored: null, log, twilio, sms_bridge or a host provider
+    default_provider: 'null'          # provider while sms.provider is not stored: null, log, twilio, sms_bridge or a host provider (2.0: set it, or config_provider, when Instance Settings is not registered)
     sender: null                      # sender while sms.sender is not stored (E.164 or alphanumeric id)
     config_provider: null             # 1.4: service id of a SmsConfigProviderInterface (null = the sms section over this configuration, or this configuration only without Instance Settings (1.5); FallbackSmsConfigProvider = this configuration only)
     http:
@@ -273,4 +273,5 @@ The container refuses to compile when:
 - `test_action.enabled` is true and form CSRF is unavailable or disabled (`framework.csrf_protection`, `framework.form.csrf_protection`);
 - `auth_kit.password_reset.enabled` is true without `nowo-tech/auth-kit-bundle`, or `delivery: messenger` without `symfony/messenger`;
 - a security switch is an environment placeholder;
+- 2.0: NowoInstanceSettingsBundle is not registered and neither `config_provider` nor `default_provider` is set (no provider source: SMS, AuthKit reset codes included, would be dropped silently). Set one of them (`default_provider: 'null'` keeps SMS disabled on purpose) or install `nowo-tech/instance-settings-bundle`;
 - two providers share a name, or a provider name is not lower snake case (at first use).

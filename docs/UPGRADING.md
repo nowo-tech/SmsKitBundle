@@ -19,6 +19,51 @@
 
 ## Unreleased
 
+From **1.5.x** (major version: Composer needs `-W` to cross it):
+
+```bash
+composer require nowo-tech/sms-kit-bundle:^2.0 -W
+```
+
+If you use the `sms` settings page or the send-test action (the default setup), also require Instance Settings before
+or with the update:
+
+```bash
+composer require nowo-tech/instance-settings-bundle
+```
+
+2.0 contains only changes that 1.x announced through deprecation notices: an application that runs the last 1.x minor
+without deprecation notices from this bundle upgrades without code changes. After 2.0.0 is released, the 1.x line
+receives security fixes for 6 months: fixes rated Moderate and above are backported to the last 1.x minor; Low ones are
+fixed in 2.x only.
+
+**Before you upgrade.** 1.x raised no runtime deprecation notice. The only announced change is item 3 of "To 1.5.0",
+"Deprecation notice": "Instance Settings stays in `require` in 1.x; 2.0 moves it to `suggest`. If your application
+uses Instance Settings itself (or relies on SmsKit to install it), require `nowo-tech/instance-settings-bundle`
+explicitly now."
+
+**Default changes.** None. No configuration key changes; the AuthKit integration is unchanged (AuthKit 1.31+ or 2.x).
+
+**Removed.** Nothing: no class, service, configuration key, route or template is removed.
+
+**Composer moves.**
+
+| Package | 1.x | 2.0 | What it enables |
+|---------|-----|-----|-----------------|
+| `nowo-tech/instance-settings-bundle` | `require` `^1.3` | `suggest`; `conflict` `<1.3` | The database-backed `sms` settings page and the send-test action |
+
+- **Standard hosts** (`NowoInstanceSettingsBundle` registered): require it directly, as above. Nothing else changes.
+- **Hosts on `config_provider` or on the bundle configuration** (DDD path since 1.5, Instance Settings not registered):
+  nothing to do.
+- **If Instance Settings disappears** (it came only through SmsKit, and Flex removed its bundle line): with
+  `default_provider` or `config_provider` set, SmsKit sends through the bundle configuration. With neither, the
+  container build fails with "no SMS provider source is configured" and the `composer require` line above, instead of
+  silently dropping every SMS (AuthKit reset codes included). Set `default_provider: 'null'` if SMS is disabled on
+  purpose.
+
+**1.x support.** 1.x receives security fixes for 6 months after 2.0.0 (Moderate and above, backported to the last 1.x
+minor). See [.github/SECURITY.md](../.github/SECURITY.md).
+
 ## To 1.5.2
 
 From **1.5.1**:

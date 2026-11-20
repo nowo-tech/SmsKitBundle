@@ -288,7 +288,9 @@ own; by default its configuration (provider, sender, credentials) is stored by I
 Standard path (default): register `NowoInstanceSettingsBundle`; the `sms` section stores the provider and the
 credentials, edited at runtime, with the bundle configuration as fallback. DDD path (opt-in): leave Instance Settings
 out of `config/bundles.php`; SmsKit then needs no Doctrine and reads its configuration from your port, or from the
-bundle configuration when `config_provider` is unset:
+bundle configuration when `config_provider` is unset. Since 2.0 one of `config_provider` or `default_provider` must be
+set (`default_provider: 'null'` keeps SMS disabled on purpose); with neither, the container build fails and says to
+install Instance Settings, instead of every SMS (AuthKit reset codes included) being dropped silently:
 
 ```yaml
 # config/packages/nowo_sms_kit.yaml — config/bundles.php has no NowoInstanceSettingsBundle
@@ -332,8 +334,8 @@ final readonly class SmsOneTimeCodeSender implements OneTimeCodeSender // your p
 
 **Known limitations**
 
-- InstanceSettingsBundle stays in composer `require` in 1.x (installed, but it does not have to be registered);
-  2.0 moves it to `suggest`.
+- Since 2.0 InstanceSettingsBundle is only suggested (in 1.x it was installed with the bundle but did not have to be
+  registered).
 - The bundle dispatches no events on sent or failed messages: decorate `SmsSenderInterface` in your adapter if you
   need to record them.
 - Asynchronous delivery (Messenger) is only wired for the AuthKit password-reset adapter, and its message carries

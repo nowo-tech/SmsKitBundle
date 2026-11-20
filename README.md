@@ -35,7 +35,7 @@ The provider and its configuration are resolved on every send and memoized for t
 composer require nowo-tech/sms-kit-bundle
 ```
 
-The bundle builds on `nowo-tech/instance-settings-bundle` (installed as a dependency): set it up first (Doctrine table, encryption key, admin UI) — see its [installation guide](https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/INSTALLATION.md). With Symfony Flex the recipe adds `config/packages/nowo_sms_kit.yaml` and the route import of the send-test action; without Flex see [docs/INSTALLATION.md](docs/INSTALLATION.md).
+The default setup (the `sms` settings page and its send-test action) builds on `nowo-tech/instance-settings-bundle`. Since 2.0 it is only suggested, so install it too (`composer require nowo-tech/instance-settings-bundle`) and set it up first (Doctrine table, encryption key, admin UI) — see its [installation guide](https://github.com/nowo-tech/InstanceSettingsBundle/blob/main/docs/INSTALLATION.md). With Symfony Flex the recipe adds `config/packages/nowo_sms_kit.yaml` and the route import of the send-test action; without Flex see [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ```yaml
 # config/routes/nowo_sms_kit.yaml
@@ -69,8 +69,9 @@ Open `/admin/settings/sections/sms`, pick a provider, enter its credentials and 
 
 - PHP **8.2+** (`>=8.2 <8.6`; Symfony 8.x requires PHP 8.4+)
 - Symfony **7.4**, **8.0** or **8.1** (FrameworkBundle, HttpClient, RateLimiter, Form, Validator, Security CSRF; SecurityBundle for the admin UI)
-- `nowo-tech/instance-settings-bundle` **^1.0** (and therefore Doctrine ORM + `nowo-tech/doctrine-encrypt-bundle`), `nowo-tech/outbound-url-guard-bundle` **^1.3**, `nowo-tech/form-kit-bundle` **^2.17**, `nowo-tech/ui-kit-bundle` **^2.17.5**
-- Optional: `nowo-tech/auth-kit-bundle` **^1.31** for the password-reset SMS adapter
+- `nowo-tech/outbound-url-guard-bundle` **^1.3**, `nowo-tech/form-kit-bundle` **^2.17**, `nowo-tech/ui-kit-bundle` **^2.17.5**
+- `nowo-tech/instance-settings-bundle` **^1.3** (and therefore Doctrine ORM + `nowo-tech/doctrine-encrypt-bundle`) for the `sms` settings page and the send-test action — suggested since 2.0, install it for the default setup; without it the configuration comes from `nowo_sms_kit.default_provider` / `config_provider`
+- Optional: `nowo-tech/auth-kit-bundle` **^1.31 or ^2.0** for the password-reset SMS adapter
 
 ## Configuration
 

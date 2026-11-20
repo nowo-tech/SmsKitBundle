@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Removed](#removed)
+  - [Changed](#changed)
+  - [Security](#security)
+  - [Demo](#demo)
 - [[1.5.2] - 2026-11-14](#152---2026-11-14)
   - [Added](#added)
 - [[1.5.1] - 2026-11-11](#151---2026-11-11)
@@ -16,26 +20,41 @@ All notable changes to this project are documented here. The format follows
   - [Target 1.5.0](#target-150)
 - [[1.4.0] - 2026-11-10](#140---2026-11-10)
   - [Added](#added-2)
-  - [Changed](#changed-1)
+  - [Changed](#changed-2)
   - [Documentation](#documentation-1)
 - [[1.3.0] - 2026-11-02](#130---2026-11-02)
   - [Added](#added-3)
-  - [Changed](#changed-2)
+  - [Changed](#changed-3)
 - [[1.2.0] - 2026-11-02](#120---2026-11-02)
   - [Added](#added-4)
-  - [Changed](#changed-3)
+  - [Changed](#changed-4)
   - [Documentation](#documentation-2)
 - [[1.1.0] - 2026-11-01](#110---2026-11-01)
   - [Added](#added-5)
-  - [Changed](#changed-4)
+  - [Changed](#changed-5)
   - [Fixed](#fixed-1)
   - [Documentation](#documentation-3)
 - [[1.0.0] - 2026-10-31](#100---2026-10-31)
   - [Added](#added-6)
-  - [Changed](#changed-5)
-  - [Security](#security)
+  - [Changed](#changed-6)
+  - [Security](#security-1)
 
 ## [Unreleased]
+
+### Removed
+
+- **BREAKING (Composer):** `nowo-tech/instance-settings-bundle` is no longer required (REQ-ARCH-001 rule 8, announced in UPGRADING "To 1.5.0", item 3 "Deprecation notice"). It moves to `suggest` (the database-backed `sms` settings page and the send-test action) and stays in `require-dev`; `conflict` refuses Instance Settings below 1.3. Every Instance Settings service was already registered only when `NowoInstanceSettingsBundle` is (1.5). Apps on the default setup run `composer require nowo-tech/instance-settings-bundle` (see UPGRADING)
+
+### Changed
+
+- Without `NowoInstanceSettingsBundle`, a configuration that sets neither `config_provider` nor `default_provider` now fails the container build with a `LogicException` naming `composer require nowo-tech/instance-settings-bundle` (owner decision Q7). Before, the provider silently resolved to `null` and `SafeSender` skipped every AuthKit reset-code SMS without a log line. An explicit `default_provider` (also `'null'` or an `%env()%` placeholder) stays valid
+- `require-dev` `nowo-tech/auth-kit-bundle` is `^1.31 || ^2.0` (the adapter implements `PasswordResetNotifierInterface`, kept in AuthKit 2.0)
+- CI: new job "Without Instance Settings" removes the package and runs `tests/Integration/Ddd` (with a new kernel test of the default configuration without it); `ci.yml` also runs on the `1.x` maintenance branch
+- Recipe 1.2 post-install text: install Instance Settings first
+
+### Security
+
+- 1.x support after 2.0.0: security fixes for 6 months; Moderate and above are backported to the last 1.x minor, Low ones are fixed in 2.x only (`.github/SECURITY.md`, `docs/SECURITY.md`)
 
 ### Demo
 
