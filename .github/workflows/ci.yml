@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, 1.x]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, 1.x]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
@@ -300,6 +300,38 @@ jobs:
         with:
           files: coverage.xml
           fail_ci_if_error: false
+
+  # 2.0 (REQ-ARCH-001 rule 8): nowo-tech/instance-settings-bundle is only suggested. Remove it and run the DDD
+  # integration tests (bundle configuration / host config_provider, no Doctrine) without it.
+  without-instance-settings:
+    name: Without Instance Settings
+    needs: changes
+    # Light mode: skipped (a skipped non-matrix job reports its own name as success).
+    if: ${{ !cancelled() && needs.changes.outputs.mode != 'light' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: json, pdo_sqlite, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Remove nowo-tech/instance-settings-bundle
+        run: |
+          composer remove --dev nowo-tech/instance-settings-bundle --no-update --no-interaction
+          composer update --no-interaction --prefer-dist --no-progress
+
+      - name: DDD integration tests without Instance Settings
+        env:
+          SYMFONY_DEPRECATIONS_HELPER: max[direct]=0
+          SMS_KIT_EXPECT_NO_INSTANCE_SETTINGS: '1'
+        run: php -d memory_limit=512M vendor/bin/phpunit tests/Integration/Ddd
 
   # REQ-TEST-011: boot the FrankenPHP demo (MySQL) and expect HTTP 200 on every push / PR.
   demo-smoke:
