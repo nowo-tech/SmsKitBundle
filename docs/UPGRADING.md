@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.0.0](#to-200)
 - [To 1.5.2](#to-152)
 - [To 1.5.1](#to-151)
 - [To 1.5.0](#to-150)
@@ -18,6 +19,14 @@
   - [Breaking changes](#breaking-changes)
 
 ## Unreleased
+
+## To 2.0.0
+
+From **1.5.2**:
+
+```bash
+composer update nowo-tech/sms-kit-bundle
+```
 
 From **1.5.x** (major version: Composer needs `-W` to cross it):
 

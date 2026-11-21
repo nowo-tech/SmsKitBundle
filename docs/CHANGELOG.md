@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.0.0] - 2026-11-21](#200---2026-11-21)
   - [Removed](#removed)
   - [Changed](#changed)
   - [Security](#security)
@@ -40,6 +41,8 @@ All notable changes to this project are documented here. The format follows
   - [Security](#security-1)
 
 ## [Unreleased]
+
+## [2.0.0] - 2026-11-21
 
 ### Removed
 
