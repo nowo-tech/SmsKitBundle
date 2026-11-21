@@ -3,46 +3,40 @@
 {% block title %}Home - SMS Kit Demo{% endblock %}
 
 {% block nowo_ui_page_header %}
-    {{ include(nowo_ui_partial('page_header'), {title: 'Send an SMS'}) }}
+    {% set _toolbar %}<a class="nowo-ui-btn nowo-ui-btn--outline" href="{{ path('nowo_instance_settings_section', {section: 'sms'}) }}">Open the SMS settings</a>{% endset %}
+    {{ include(nowo_ui_partial('page_header'), {
+        title: 'Send an SMS',
+        intro: 'The provider and its credentials live in the sms instance settings section (tokens encrypted at rest). This demo uses the log provider: messages are written (masked) to the Symfony log and nothing leaves the container. In the settings choose the provider, its credentials and a test recipient, then press "Send a test SMS".',
+        toolbar: _toolbar,
+    }) }}
 {% endblock %}
 
 {% block body %}
-    <section class="nowo-ui-card">
-        <div class="nowo-ui-card__body">
-            <p>
-                The provider and its credentials live in the <strong>sms</strong> instance settings section
-                (<code>nowo-tech/instance-settings-bundle</code>, tokens encrypted at rest). This demo uses the
-                <strong>log</strong> provider: messages are written (masked) to the Symfony log — open the profiler to see them —
-                and nothing leaves the container.
-            </p>
-            <dl class="nowo-ui-detail-list" data-testid="sms-status">
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Status', kind: 'detail', testid: 'sms-status', provider: provider, configured: configured, sender: sender, recipient: recipient} %}
+        {% block section_body %}
+            <dl class="nowo-ui-detail-list">
                 <div class="nowo-ui-detail-list__item"><dt class="nowo-ui-detail-list__term">Active provider</dt><dd class="nowo-ui-detail-list__value" data-testid="sms-provider">{{ provider }} ({{ configured ? 'configured' : 'not configured' }})</dd></div>
                 <div class="nowo-ui-detail-list__item"><dt class="nowo-ui-detail-list__term">Sender</dt><dd class="nowo-ui-detail-list__value">{{ sender ?? '—' }}</dd></div>
                 <div class="nowo-ui-detail-list__item"><dt class="nowo-ui-detail-list__term">Test recipient</dt><dd class="nowo-ui-detail-list__value">{{ recipient ?: '—' }}</dd></div>
             </dl>
-        </div>
-    </section>
+        {% endblock %}
+    {% endembed %}
 
-    <section class="nowo-ui-card">
-        <div class="nowo-ui-card__header"><h3 class="nowo-ui-card__title">Message</h3></div>
-        <div class="nowo-ui-card__body">
-            {% if result %}
-                <div class="nowo-ui-flash nowo-ui-flash--success" role="status" data-testid="sms-result">Sent via {{ result.provider }} to {{ result.to }} — id {{ result.id }}, status {{ result.status }}.</div>
-            {% endif %}
-            {% if error %}
-                <div class="nowo-ui-flash nowo-ui-flash--error" role="alert" data-testid="sms-error">{{ error }}</div>
-            {% endif %}
+    {% if result %}
+        {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Result', kind: 'detail', testid: 'sms-result', result: result} %}
+            {% block section_actions %}<span class="nowo-ui-badge nowo-ui-badge--success">{{ result.status }}</span>{% endblock %}
+            {% block section_body %}<p>Sent via {{ result.provider }} to {{ result.to }} — id {{ result.id }}, status {{ result.status }}.</p>{% endblock %}
+        {% endembed %}
+    {% endif %}
+    {% if error %}
+        {% include '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Error', state: 'error', state_message: error, testid: 'sms-error'} %}
+    {% endif %}
+
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Message', kind: 'form', form: form} %}
+        {% block section_body %}
             {{ form_start(form) }}
                 {{ form_rest(form) }}
             {{ form_end(form, {render_rest: false}) }}
-        </div>
-    </section>
-
-    <section class="nowo-ui-card">
-        <div class="nowo-ui-card__header"><h3 class="nowo-ui-card__title">Manage</h3></div>
-        <div class="nowo-ui-card__body">
-            <a class="nowo-ui-btn nowo-ui-btn--outline" href="{{ path('nowo_instance_settings_section', {section: 'sms'}) }}">Open the SMS settings</a>
-            <span class="nowo-ui-muted">Choose the provider, its credentials and a test recipient, then press "Send a test SMS".</span>
-        </div>
-    </section>
+        {% endblock %}
+    {% endembed %}
 {% endblock %}

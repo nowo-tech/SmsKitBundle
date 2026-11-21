@@ -1,25 +1,21 @@
-{#- REQ-DEMO-014: the demo shell is UiKit's admin layout with UiKit's default theme (nowo-ui.css from the bundle's own
-    asset package, no CSS framework, no CDN, no inline styles). nowo_ui_kit.layouts.admin points here, so the
-    instance-settings pages (UiKit page contract, REQ-UI-003) render inside the same shell. -#}
-{% extends '@NowoUiKit/layout/admin.html.twig' %}
+{#- REQ-DEMO-014: the demo runs inside UiKit's shared demo platform shell (@NowoUiKit/demo_platform/layout.html.twig):
+    the same top bar, aside, content width, theme and footer as every other nowo-tech bundle demo. This file only
+    declares the demo (nowo_ui_demo_platform). nowo_ui_kit.layouts.admin points here, so the instance-settings pages
+    (UiKit page contract, REQ-UI-003) render inside the same shell. -#}
+{% extends '@NowoUiKit/demo_platform/layout.html.twig' %}
+{% set nowo_ui_demo_platform = {
+    bundle: 'SMS Kit',
+    home_route: 'demo_home',
+    repository: 'https://github.com/nowo-tech/SmsKitBundle',
+    translation_domain: false,
+    locales: [],
+    nav: [
+        {label: 'Send', route: 'demo_home'},
+        {label: 'Settings', route: 'nowo_instance_settings_index', active: ['nowo_instance_settings*']},
+    ],
+} %}
 
 {% block nowo_ui_document_title %}{% block title %}SMS Kit Demo{% endblock %}{% endblock %}
-
-{% block nowo_ui_navigation %}
-    {% set _route = app.request.attributes.get('_route') %}
-    <header class="nowo-ui-header" data-testid="demo-masthead">
-        <a class="nowo-ui-brand" href="{{ path('demo_home') }}">SMS Kit Bundle Demo</a>
-        <nav class="nowo-ui-menu" aria-label="SMS Kit Bundle Demo">
-            <a class="nowo-ui-link" href="{{ path('demo_home') }}"{% if _route == 'demo_home' %} aria-current="page"{% endif %}>Send</a>
-            <a class="nowo-ui-link" href="{{ path('nowo_instance_settings_index') }}"{% if _route starts with 'nowo_instance_settings' %} aria-current="page"{% endif %}>Settings</a>
-        </nav>
-        <div class="nowo-ui-header__end">
-            {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', { compact: true }, false) }}
-        </div>
-    </header>
-{% endblock %}
-
-{% block nowo_ui_content %}{% block body %}{% endblock %}{% endblock %}
 
 {% block nowo_ui_scripts %}
     {{ parent() }}
