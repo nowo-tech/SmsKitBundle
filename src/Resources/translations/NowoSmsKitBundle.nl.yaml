@@ -20,7 +20,7 @@ settings:
         bridge_base_url_help: 'Basis-URL van de SMS Bridge-server (https).'
         bridge_api_mode: 'SMS Bridge-API'
         bridge_api_mode_twilio: 'Twilio-compatibel'
-        bridge_api_mode_native: 'Native (/api/v1/sms)'
+        bridge_api_mode_native: "Natief (/api/v1/sms)"
         bridge_account_sid: 'SMS Bridge Account SID'
         bridge_auth_token: 'SMS Bridge-clientsleutel'
         bridge_auth_token_help: 'Client-API-sleutel (smscli_…).'
