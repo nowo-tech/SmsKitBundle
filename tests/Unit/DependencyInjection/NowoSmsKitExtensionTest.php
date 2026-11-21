@@ -112,7 +112,7 @@ final class NowoSmsKitExtensionTest extends TestCase
 
     public function testWithoutInstanceSettingsTheBundleConfigurationIsTheSource(): void
     {
-        $container = $this->load(instanceSettings: false);
+        $container = $this->load(['default_provider' => 'log'], instanceSettings: false);
 
         self::assertFalse($container->getParameter(NowoSmsKitExtension::INSTANCE_SETTINGS_PARAMETER));
         self::assertSame(FallbackSmsConfigProvider::class, (string) $container->getAlias(SmsConfigProviderInterface::class));
@@ -131,6 +131,38 @@ final class NowoSmsKitExtensionTest extends TestCase
         $extensionOnly->registerExtension(new NowoInstanceSettingsExtension());
         (new NowoSmsKitExtension())->load([[]], $extensionOnly);
         self::assertTrue($extensionOnly->getParameter(NowoSmsKitExtension::INSTANCE_SETTINGS_PARAMETER));
+    }
+
+    public function testWithoutInstanceSettingsAnUnsetProviderSourceFailsTheBuild(): void
+    {
+        foreach ([[], ['sender' => 'Acme'], ['config_provider' => '']] as $config) {
+            try {
+                $this->load($config, instanceSettings: false);
+                self::fail('Expected a LogicException.');
+            } catch (LogicException $e) {
+                self::assertStringContainsString('composer require nowo-tech/instance-settings-bundle', $e->getMessage());
+                self::assertStringContainsString('nowo_sms_kit.default_provider', $e->getMessage());
+                self::assertStringContainsString('"To 2.0.0"', $e->getMessage());
+            }
+        }
+
+        // Several blocks without a provider source (an empty `nowo_sms_kit:` block plus `when@prod` values) do not count.
+        $this->expectException(LogicException::class);
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', []);
+        (new NowoSmsKitExtension())->load([[], ['sender' => 'Acme']], $container);
+    }
+
+    public function testWithoutInstanceSettingsAnExplicitProviderSourceIsAccepted(): void
+    {
+        foreach ([['default_provider' => 'null'], ['default_provider' => ''], ['default_provider' => '%env(SMS_PROVIDER)%'], ['config_provider' => 'app.sms_config']] as $config) {
+            $container = new ContainerBuilder();
+            $container->setParameter('kernel.bundles', []);
+            (new NowoSmsKitExtension())->load([[], $config], $container);
+            self::assertFalse($container->getParameter(NowoSmsKitExtension::INSTANCE_SETTINGS_PARAMETER));
+        }
+        // With Instance Settings the "sms" page is the source: nothing to configure.
+        self::assertTrue($this->load()->getParameter(NowoSmsKitExtension::INSTANCE_SETTINGS_PARAMETER));
     }
 
     public function testOptionalProvidersAndTestActionCanBeDisabled(): void

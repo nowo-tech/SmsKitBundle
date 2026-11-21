@@ -97,9 +97,12 @@ and the sender API have no session and no CSRF.
 ## Dependencies and updates
 
 - Runtime dependencies: Symfony components (HttpClient, RateLimiter, Form, Validator, Security CSRF, …),
-  InstanceSettingsBundle (with Doctrine and DoctrineEncrypt), OutboundUrlGuardBundle, FormKit, UiKit. CI runs
+  OutboundUrlGuardBundle, FormKit, UiKit; InstanceSettingsBundle (with Doctrine and DoctrineEncrypt) when the host
+  installs it (suggested since 2.0, `conflict` below 1.3). CI runs
   `composer audit --locked` on every matrix cell; Dependabot groups Composer and GitHub Actions updates.
 - Security fixes are released as patch versions and noted in the changelog.
+- Supported versions: 2.x ✅; 1.x security fixes (Moderate+) until 6 months after 2.0.0. Fixes rated Moderate and
+  above are backported to the last 1.x minor as a 1.x patch; Low ones are fixed in 2.x only.
 
 ## Release security checklist (12.4.1)
 

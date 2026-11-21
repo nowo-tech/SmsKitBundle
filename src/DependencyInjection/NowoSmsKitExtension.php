@@ -55,6 +55,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\RateLimiter\Storage\CacheStorage;
 
+use function array_key_exists;
 use function array_values;
 use function interface_exists;
 use function is_array;
@@ -109,7 +110,8 @@ final class NowoSmsKitExtension extends Extension
         $this->assertLiteralBooleans($config);
 
         /* @var array{default_provider: string, sender: string|null, config_provider: string|null, http: array{timeout: float, max_duration: float, allow_private_endpoints: bool, resolve_dns: bool, require_https: bool, max_response_bytes: int}, destinations: array{allowed_country_codes: list<string>, denied_prefixes: list<string>, rate_limit: array{per_destination: array{enabled: bool, limit: int, interval: string}, global: array{enabled: bool, limit: int, interval: string}}}, providers: array{log: array{enabled: bool}, twilio: array{enabled: bool, api_base_url: string, account_sid: string|null, auth_token: string|null, messaging_service_sid: string|null}, sms_bridge: array{enabled: bool, base_url: string|null, api_mode: string, account_sid: string|null, auth_token: string|null, device_id: string|null}}, test_action: array{enabled: bool, path: string, rate_limit: array{limit: int, interval: string}}, auth_kit: array{password_reset: array{enabled: bool, phone_property: string, phone_resolver: string|null, delivery: string, messenger_failures: string}}} $config */
-        $settings   = $this->hasInstanceSettings($container);
+        $settings = $this->hasInstanceSettings($container);
+        $this->assertProviderSource($configs, $config['config_provider'], $settings);
         $testAction = $config['test_action'];
         // The send-test action is a button of the Instance Settings `sms` page: without that bundle there is no page.
         $testAction['enabled'] = $testAction['enabled'] && $settings;
@@ -260,6 +262,33 @@ final class NowoSmsKitExtension extends Extension
             new Reference(SmsFallbacks::class),
             new ServiceClosureArgument(new Reference(SmsConfigStatus::class)),
         ]))->addTag(NowoInstanceSettingsBundle::SECTION_TAG));
+    }
+
+    /**
+     * 2.0 (rule 8, owner decision Q7): Instance Settings is only suggested, so a host that got it through this package
+     * loses it on `composer update` (and Flex removes its bundle line). Without it, and without a `config_provider` or
+     * an explicit `default_provider`, the provider would silently be "null": AuthKit reset codes would never be sent and
+     * nothing would say why. Fail the container build instead. An explicit `default_provider` (also `'null'` or an
+     * `%env()%` placeholder) is a deliberate host choice and stays valid.
+     *
+     * @param array<array<string, mixed>> $configs raw configuration blocks
+     * @param string|null $configProvider `config_provider`
+     * @param bool $settings NowoInstanceSettingsBundle registered
+     *
+     * @throws LogicException when no provider source is configured
+     */
+    private function assertProviderSource(array $configs, ?string $configProvider, bool $settings): void
+    {
+        if ($settings || (is_string($configProvider) && $configProvider !== '')) {
+            return;
+        }
+        foreach ($configs as $block) {
+            if (array_key_exists('default_provider', $block)) {
+                return;
+            }
+        }
+
+        throw new LogicException('NowoSmsKitBundle: no SMS provider source is configured. The "sms" settings page needs nowo-tech/instance-settings-bundle, which is no longer installed with this bundle since 2.0: run "composer require nowo-tech/instance-settings-bundle" (and register NowoInstanceSettingsBundle), or set nowo_sms_kit.default_provider (\'null\' keeps SMS disabled on purpose) or nowo_sms_kit.config_provider. See docs/UPGRADING.md, "To 2.0.0".');
     }
 
     /**

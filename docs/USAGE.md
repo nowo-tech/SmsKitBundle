@@ -208,7 +208,7 @@ nowo_sms_kit:
             phone_property: phone      # User::getPhone(), User::phone() or public $phone (E.164)
 ```
 
-`SmsPasswordResetNotifier` decorates AuthKit's `PasswordResetNotifierInterface` alias: AuthKit calls it, it calls your notifier (the e-mail one) and then, when the delivery mode includes a **code** (`nowo_auth_kit` `password_reset.delivery_mode: code` or `both`), builds `auth_kit.password_reset.sms_body` (`%code%`) in the recipient locale for the number stored on the account (AuthKit 1.31+ hands the resolved account to notifiers; the typed identifier is never used) and hands it to the configured delivery: **`deferred`** (default, sent after the response on `kernel.terminate`, or when the Messenger message is handled / the console command ends; a failed message discards it and its retry sends it), `messenger` (a `SendSmsMessage` for an async transport) or `sync`. Nothing is sent without a configured provider or a valid number on the account; any failure (\Throwable) of the SMS part is logged without the code and never changes the reset response. Make sure the phone was verified before you let it receive reset codes. Replace the property lookup with `phone_resolver: App\Sms\AccountPhoneResolver` (implements `PhoneNumberResolverInterface`).
+`SmsPasswordResetNotifier` decorates AuthKit's `PasswordResetNotifierInterface` alias: AuthKit calls it, it calls your notifier (the e-mail one) and then, when the delivery mode includes a **code** (`nowo_auth_kit` `password_reset.delivery_mode: code` or `both`), builds `auth_kit.password_reset.sms_body` (`%code%`) in the recipient locale for the number stored on the account (AuthKit 1.31+ hands the resolved account to notifiers; the typed identifier is never used) and hands it to the configured delivery: **`deferred`** (default, sent after the response on `kernel.terminate`, or when the Messenger message is handled / the console command ends; a failed message discards it and its retry sends it), `messenger` (a `SendSmsMessage` for an async transport) or `sync`. Nothing is sent without a configured provider (since 2.0 each such skip logs the warning "SMS not sent: no SMS provider is configured.") or a valid number on the account; any failure (\Throwable) of the SMS part is logged without the code and never changes the reset response. Make sure the phone was verified before you let it receive reset codes. Replace the property lookup with `phone_resolver: App\Sms\AccountPhoneResolver` (implements `PhoneNumberResolverInterface`).
 
 Hosts that only want to know whether SMS is available (to offer the OTP option) call `SmsSenderInterface::isConfigured()`.
 
@@ -288,7 +288,9 @@ own; by default its configuration (provider, sender, credentials) is stored by I
 Standard path (default): register `NowoInstanceSettingsBundle`; the `sms` section stores the provider and the
 credentials, edited at runtime, with the bundle configuration as fallback. DDD path (opt-in): leave Instance Settings
 out of `config/bundles.php`; SmsKit then needs no Doctrine and reads its configuration from your port, or from the
-bundle configuration when `config_provider` is unset:
+bundle configuration when `config_provider` is unset. Since 2.0 one of `config_provider` or `default_provider` must be
+set (`default_provider: 'null'` keeps SMS disabled on purpose); with neither, the container build fails and says to
+install Instance Settings, instead of every SMS (AuthKit reset codes included) being dropped silently:
 
 ```yaml
 # config/packages/nowo_sms_kit.yaml — config/bundles.php has no NowoInstanceSettingsBundle
@@ -332,8 +334,8 @@ final readonly class SmsOneTimeCodeSender implements OneTimeCodeSender // your p
 
 **Known limitations**
 
-- InstanceSettingsBundle stays in composer `require` in 1.x (installed, but it does not have to be registered);
-  2.0 moves it to `suggest`.
+- Since 2.0 InstanceSettingsBundle is only suggested (in 1.x it was installed with the bundle but did not have to be
+  registered).
 - The bundle dispatches no events on sent or failed messages: decorate `SmsSenderInterface` in your adapter if you
   need to record them.
 - Asynchronous delivery (Messenger) is only wired for the AuthKit password-reset adapter, and its message carries

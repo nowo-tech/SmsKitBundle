@@ -39,7 +39,6 @@
     "require": {
         "php": ">=8.2 <8.6",
         "nowo-tech/form-kit-bundle": "^2.17",
-        "nowo-tech/instance-settings-bundle": "^1.3",
         "nowo-tech/outbound-url-guard-bundle": "^1.3",
         "nowo-tech/ui-kit-bundle": "^2.23",
         "psr/log": "^2.0 || ^3.0",
@@ -65,7 +64,8 @@
         "doctrine/dbal": "^3.8 || ^4.0",
         "friendsofphp/php-cs-fixer": "^3.0",
         "igor-php/igor-php": "^0.10.1",
-        "nowo-tech/auth-kit-bundle": "^1.31",
+        "nowo-tech/auth-kit-bundle": "^1.31 || ^2.0",
+        "nowo-tech/instance-settings-bundle": "^1.3",
         "nowo-tech/phpstan-frankenphp": "^1.0",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^2.0",
@@ -82,8 +82,12 @@
         "symfony/translation": "^7.4 || ^8.0",
         "symfony/yaml": "^7.4 || ^8.0"
     },
+    "conflict": {
+        "nowo-tech/instance-settings-bundle": "<1.3"
+    },
     "suggest": {
         "nowo-tech/auth-kit-bundle": "Send AuthKit password-reset codes by SMS (nowo_sms_kit.auth_kit.password_reset.enabled)",
+        "nowo-tech/instance-settings-bundle": "Database-backed SMS settings page and send-test action (the `sms` Instance Settings section)",
         "symfony/flex": "For automatic recipe installation",
         "symfony/messenger": "Send the AuthKit reset-code SMS from a worker (nowo_sms_kit.auth_kit.password_reset.delivery: messenger)",
         "symfony/security-bundle": "Required by the instance settings admin UI that hosts the send-test action"

@@ -22,8 +22,11 @@ caller ──► SmsSenderInterface (ConfiguredSmsSender)
                                  ProviderHttpClient ──► OutboundUrlGuard ──► Symfony HttpClient
 ```
 
-The bundle depends on InstanceSettingsBundle for storage, encryption and the admin page; it does not depend on any
-other kit (MailKit, …).
+The default setup uses InstanceSettingsBundle for storage, encryption and the admin page. Since 2.0 it is only suggested
+(REQ-ARCH-001 rule 8 ✅): without it, `SmsConfigProviderInterface` resolves to `nowo_sms_kit.config_provider` or to
+`FallbackSmsConfigProvider` (the bundle configuration), the `sms` section and the send-test action are not registered,
+and a configuration that names no provider source (no `config_provider`, no `default_provider`) fails the container
+build. The bundle does not depend on any other kit (MailKit, …).
 
 ## Send flow
 
