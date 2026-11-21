@@ -60,6 +60,13 @@ explicitly now."
   container build fails with "no SMS provider source is configured" and the `composer require` line above, instead of
   silently dropping every SMS (AuthKit reset codes included). Set `default_provider: 'null'` if SMS is disabled on
   purpose.
+- **Hosts on the 1.0 recipe** (`default_provider: '%env(SMS_PROVIDER)%'` with `SMS_PROVIDER=null` in `.env`) pass that
+  build check even without Instance Settings, because the value is only known at runtime. Since 2.0 every SMS skipped
+  because no provider is configured (AuthKit reset codes included) logs the warning "SMS not sent: no SMS provider is
+  configured." on the `sms` channel. If you see it, set `SMS_PROVIDER` (and the provider credentials) or install
+  Instance Settings again.
+- **Fresh installs:** the recipe's `config/packages/nowo_sms_kit.yaml` has a commented `# default_provider: 'null'`
+  line; uncomment and set it when the application does not use Instance Settings.
 
 **1.x support.** 1.x receives security fixes for 6 months after 2.0.0 (Moderate and above, backported to the last 1.x
 minor). See [.github/SECURITY.md](../.github/SECURITY.md).

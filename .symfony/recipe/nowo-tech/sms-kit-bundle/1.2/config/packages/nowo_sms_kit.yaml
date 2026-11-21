@@ -5,6 +5,11 @@
 #   php bin/console nowo:instance-settings:seed-from-fallbacks --section=sms
 # and remove them afterwards. Reference: https://github.com/nowo-tech/SmsKitBundle/blob/main/docs/USAGE.md#db-only-mode
 nowo_sms_kit:
+    # Without nowo-tech/instance-settings-bundle (suggested since 2.0) there is no "sms" section: the container build
+    # then fails until a provider source is set. Name the provider here (null keeps SMS disabled on purpose; log, twilio,
+    # sms_bridge or a host provider name), or set config_provider to your SmsConfigProviderInterface service.
+    # default_provider: 'null'
+
     http:
         timeout: 5.0
         max_duration: 15.0

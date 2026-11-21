@@ -50,7 +50,8 @@ All notable changes to this project are documented here. The format follows
 - Without `NowoInstanceSettingsBundle`, a configuration that sets neither `config_provider` nor `default_provider` now fails the container build with a `LogicException` naming `composer require nowo-tech/instance-settings-bundle` (owner decision Q7). Before, the provider silently resolved to `null` and `SafeSender` skipped every AuthKit reset-code SMS without a log line. An explicit `default_provider` (also `'null'` or an `%env()%` placeholder) stays valid
 - `require-dev` `nowo-tech/auth-kit-bundle` is `^1.31 || ^2.0` (the adapter implements `PasswordResetNotifierInterface`, kept in AuthKit 2.0)
 - CI: new job "Without Instance Settings" removes the package and runs `tests/Integration/Ddd` (with a new kernel test of the default configuration without it); `ci.yml` also runs on the `1.x` maintenance branch
-- Recipe 1.2 post-install text: install Instance Settings first
+- An SMS skipped because no provider is configured (`SafeSender`: AuthKit reset codes, deferred and Messenger deliveries) now logs the warning "SMS not sent: no SMS provider is configured." with the provider name and the masked destination, once per skipped message. Covers providers that resolve to `null` only at runtime (`%env(SMS_PROVIDER)%`), which the build check cannot see (audit XQ-1)
+- Recipe 1.2: post-install text says to install Instance Settings first; `config/packages/nowo_sms_kit.yaml` has a commented `# default_provider: 'null'` line explaining what to set without Instance Settings (audit XQ-2)
 
 ### Security
 
