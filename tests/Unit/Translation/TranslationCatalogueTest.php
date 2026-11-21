@@ -13,30 +13,68 @@ use function array_keys;
 use function array_values;
 use function basename;
 use function glob;
+use function in_array;
 use function is_array;
-use function mb_strlen;
 use function preg_match;
+use function preg_replace;
 use function sort;
 use function sprintf;
 
 /**
- * Guards against untranslated strings: in every non-en catalogue (all domains) a key must exist and a value longer than
- * 15 characters, without placeholders, must differ from the English one unless the key is in ALLOWED_IDENTICAL.
+ * Guards against untranslated strings: in every non-en catalogue (all domains) a key must exist, and a value identical to
+ * the English one (any length, ignoring values without letters once placeholders are removed) must be listed in
+ * ALLOWED_IDENTICAL for that locale. An allow-list entry that is no longer identical to English is reported as stale.
  */
 final class TranslationCatalogueTest extends TestCase
 {
     private const DIR = __DIR__ . '/../../../src/Resources/translations';
 
     /**
-     * Keys whose value is legitimately identical across locales (brands, product names, CSS classes, route names).
+     * Keys that are correctly identical to English in a locale (brands, product and technical names, codes, loanwords
+     * and cognates), per locale.
      *
-     * @var array<string, string>
+     * @var array<string, list<string>>
      */
     private const ALLOWED_IDENTICAL = [
-        'settings.sms.twilio_account_sid'           => 'Twilio field name (product term)',
-        'settings.sms.twilio_auth_token'            => 'Twilio field name (product term)',
-        'settings.sms.twilio_messaging_service_sid' => 'Twilio field name (product term)',
-        'settings.sms.bridge_account_sid'           => 'SMS Bridge field name (product term)',
+        'de' => [
+            'settings.sms.label',
+            'settings.sms.provider_sms_bridge',
+            'settings.sms.provider_twilio',
+            'settings.sms.twilio_account_sid',
+            'settings.sms.twilio_auth_token',
+            'settings.sms.twilio_messaging_service_sid',
+        ],
+        'es' => [
+            'settings.sms.label',
+            'settings.sms.provider_sms_bridge',
+            'settings.sms.provider_twilio',
+        ],
+        'fr' => [
+            'settings.sms.label',
+            'settings.sms.provider_sms_bridge',
+            'settings.sms.provider_twilio',
+        ],
+        'it' => [
+            'settings.sms.label',
+            'settings.sms.provider',
+            'settings.sms.provider_sms_bridge',
+            'settings.sms.provider_twilio',
+        ],
+        'nl' => [
+            'settings.sms.bridge_account_sid',
+            'settings.sms.label',
+            'settings.sms.provider',
+            'settings.sms.provider_sms_bridge',
+            'settings.sms.provider_twilio',
+            'settings.sms.twilio_account_sid',
+            'settings.sms.twilio_auth_token',
+            'settings.sms.twilio_messaging_service_sid',
+        ],
+        'pt' => [
+            'settings.sms.label',
+            'settings.sms.provider_sms_bridge',
+            'settings.sms.provider_twilio',
+        ],
     ];
 
     /** @return iterable<string, array{string, string}> */
@@ -65,14 +103,15 @@ final class TranslationCatalogueTest extends TestCase
     {
         $english = $this->load($domain, 'en');
         $target  = $this->load($domain, $locale);
+        $allowed = self::ALLOWED_IDENTICAL[$locale] ?? [];
         $gaps    = [];
 
         foreach ($english as $key => $value) {
-            if (!isset($target[$key]) || $target[$key] !== $value || isset(self::ALLOWED_IDENTICAL[$key])) {
+            if (!isset($target[$key]) || $target[$key] !== $value || in_array($key, $allowed, true)) {
                 continue;
             }
 
-            if (mb_strlen($value) > 15 && preg_match('/%[^%\s]+%|\{[^}]+\}/', $value) !== 1) {
+            if (preg_match('/[^\W\d_]/u', (string) preg_replace('/%[^%\s]+%|\{[^}]+\}/', '', $value)) === 1) {
                 $gaps[] = $key;
             }
         }
@@ -80,15 +119,27 @@ final class TranslationCatalogueTest extends TestCase
         self::assertSame([], $gaps, sprintf('Values identical to English in %s.%s.yaml (translate or allow-list)', $domain, $locale));
     }
 
-    public function testAllowListOnlyHoldsExistingEnglishKeys(): void
+    public function testAllowListHasNoStaleEntries(): void
     {
-        $known = [];
+        $english = [];
+        $locales = [];
 
-        foreach (self::catalogues() as [$domain]) {
-            $known += $this->load($domain, 'en');
+        foreach (self::catalogues() as [$domain, $locale]) {
+            $english += $this->load($domain, 'en');
+            $locales[$locale] = ($locales[$locale] ?? []) + $this->load($domain, $locale);
         }
 
-        self::assertSame([], array_values(array_diff(array_keys(self::ALLOWED_IDENTICAL), array_keys($known))));
+        $stale = [];
+
+        foreach (self::ALLOWED_IDENTICAL as $locale => $keys) {
+            foreach ($keys as $key) {
+                if (!isset($english[$key]) || ($locales[$locale][$key] ?? null) !== $english[$key]) {
+                    $stale[] = $locale . ':' . $key;
+                }
+            }
+        }
+
+        self::assertSame([], $stale, 'Allow-list entries that no longer exist or are no longer identical to English');
     }
 
     /** @return array<string, string> */

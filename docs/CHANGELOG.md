@@ -44,7 +44,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
-- Untranslated strings in the fr/nl catalogues (`settings.sms.bridge_api_mode_native`); the Twilio and SMS Bridge field names stay as product terms and are allow-listed. A new `TranslationCatalogueTest` fails on non-en values identical to English (longer than 15 characters, no placeholders, not allow-listed) and on missing keys.
+- Untranslated strings in the fr/nl catalogues (`settings.sms.bridge_api_mode_native`); the Twilio and SMS Bridge field names stay as product terms and are allow-listed. A new `TranslationCatalogueTest` fails on missing keys and on non-en values identical to English of any length unless allow-listed per locale (brands, loanwords, cognates); the short labels (titles, buttons, filters, headings) are translated too.
 
 ### Changed
 
