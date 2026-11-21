@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\SmsKitBundle\Tests\Integration\Ddd;
 
+use DateTimeImmutable;
 use LogicException;
+use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotificationContext;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenResult;
 use Nowo\SmsKitBundle\Exception\SmsSendException;
 use Nowo\SmsKitBundle\Message\SmsMessage;
 use Nowo\SmsKitBundle\Sender\SmsSenderInterface;
@@ -13,13 +18,19 @@ use Nowo\SmsKitBundle\Settings\SmsConfigProviderInterface;
 use Nowo\SmsKitBundle\Settings\SmsSettingsSection;
 use Nowo\SmsKitBundle\Tests\Integration\Kernel\KernelTestCase;
 use Nowo\SmsKitBundle\Tests\Integration\Kernel\SmsKitTestKernel;
+use Nowo\SmsKitBundle\Tests\Support\NoopPasswordResetNotifier;
 use Nowo\SmsKitBundle\Tests\Support\Numbers;
+use stdClass;
+use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 use Symfony\Component\Routing\RouterInterface;
 
+use function array_filter;
 use function array_keys;
+use function array_values;
 use function getenv;
 use function interface_exists;
+use function json_encode;
 use function str_starts_with;
 
 /**
@@ -30,7 +41,9 @@ use function str_starts_with;
  *   silently dropping every SMS (AuthKit reset codes included);
  * - with `default_provider`, SMS is sent through the bundle configuration, and there is no Instance Settings service,
  *   no `sms` section and no send-test route;
- * - an unconfigured provider fails the send loudly.
+ * - an unconfigured provider fails the send loudly;
+ * - a provider that resolves to "null" at runtime (1.0 recipe: `%env(SMS_PROVIDER)%` with SMS_PROVIDER=null) passes the
+ *   build check, and every AuthKit reset-code SMS it skips is logged as a warning (XQ-1), never dropped silently.
  *
  * The CI job "Without Instance Settings" removes the package and sets SMS_KIT_EXPECT_NO_INSTANCE_SETTINGS=1, so this
  * test then also proves the package is really absent.
@@ -84,6 +97,46 @@ final class DefaultConfigWithoutInstanceSettingsTest extends KernelTestCase
         $this->expectException(SmsSendException::class);
         $this->expectExceptionMessage('SMS provider "twilio" is selected but not fully configured.');
         $sender->send(new SmsMessage(Numbers::TO, 'hello'));
+    }
+
+    public function testAResetCodeSkippedBecauseTheEnvProviderIsNullIsLogged(): void
+    {
+        $kernel = $this->bootKernel(
+            [
+                'default_provider' => '%env(SMS_PROVIDER)%',
+                'test_action'      => ['enabled' => false],
+                'auth_kit'         => ['password_reset' => ['enabled' => true, 'delivery' => 'sync']],
+            ],
+            routes: static function (RoutingConfigurator $routes): void {
+                $routes->import('.', 'nowo_sms_kit');
+            },
+            without: ['instance_settings', 'doctrine'],
+            // The 1.0 recipe's SMS_PROVIDER=null, as an env default (no process environment change).
+            parameters: ['env(SMS_PROVIDER)' => 'null'],
+            extra: static function (ContainerConfigurator $container): void {
+                // AuthKit's own notifier (e-mail); SmsKit decorates it.
+                $container->services()->set(PasswordResetNotifierInterface::class, NoopPasswordResetNotifier::class)->public();
+            },
+        );
+        $notifier = $this->container($kernel)->get(PasswordResetNotifierInterface::class);
+        self::assertInstanceOf(PasswordResetNotifierInterface::class, $notifier);
+
+        $user        = new stdClass();
+        $user->phone = Numbers::TO;
+        $notifier->notify(
+            new PasswordResetTokenResult($user, '123456', new DateTimeImmutable('+1 hour'), PasswordResetDeliveryMode::Code),
+            new PasswordResetNotificationContext('user@example.test', 'https://app.example.test/reset', PasswordResetDeliveryMode::Code, null, null, $user),
+        );
+
+        $records = $this->logger($kernel)->records;
+        $skipped = array_values(array_filter(
+            $records,
+            static fn (array $record): bool => $record['message'] === 'SMS not sent: no SMS provider is configured.',
+        ));
+        self::assertCount(1, $skipped);
+        self::assertSame('warning', $skipped[0]['level']);
+        self::assertSame('null', $skipped[0]['context']['provider'] ?? null);
+        self::assertStringNotContainsString('123456', (string) json_encode($records));
     }
 
     /**

@@ -126,7 +126,12 @@ final class DeliveryTest extends TestCase
     {
         $this->safe(false)->send(new SmsMessage(Numbers::TO, 'x'));
         self::assertCount(0, $this->sent);
-        self::assertSame([], $this->logger->records);
+        // 2.0 (XQ-1): a message skipped for lack of a configured provider is logged, destination masked.
+        self::assertCount(1, $this->logger->records);
+        self::assertSame('warning', $this->logger->records[0]['level']);
+        self::assertSame('SMS not sent: no SMS provider is configured.', $this->logger->records[0]['message']);
+        self::assertSame('stub', $this->logger->records[0]['context']['provider'] ?? null);
+        self::assertSame('+15*******23', $this->logger->records[0]['context']['to'] ?? null);
 
         $this->safe(true, new RuntimeException('Bad ' . Numbers::TO))->send(new SmsMessage(Numbers::TO, 'x'));
         self::assertCount(1, $this->logger->records);
