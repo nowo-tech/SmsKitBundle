@@ -55,7 +55,7 @@ final class TranslationCatalogueTest extends TestCase
     #[DataProvider('catalogues')]
     public function testLocaleHasEveryEnglishKey(string $domain, string $locale): void
     {
-        $missing = array_values(array_diff(array_keys(self::load($domain, 'en')), array_keys(self::load($domain, $locale))));
+        $missing = array_values(array_diff(array_keys($this->load($domain, 'en')), array_keys($this->load($domain, $locale))));
 
         self::assertSame([], $missing, sprintf('Keys of %s.en.yaml missing in %s.%s.yaml', $domain, $domain, $locale));
     }
@@ -63,8 +63,8 @@ final class TranslationCatalogueTest extends TestCase
     #[DataProvider('catalogues')]
     public function testNoUntranslatedEnglishValues(string $domain, string $locale): void
     {
-        $english = self::load($domain, 'en');
-        $target  = self::load($domain, $locale);
+        $english = $this->load($domain, 'en');
+        $target  = $this->load($domain, $locale);
         $gaps    = [];
 
         foreach ($english as $key => $value) {
@@ -85,18 +85,18 @@ final class TranslationCatalogueTest extends TestCase
         $known = [];
 
         foreach (self::catalogues() as [$domain]) {
-            $known += self::load($domain, 'en');
+            $known += $this->load($domain, 'en');
         }
 
         self::assertSame([], array_values(array_diff(array_keys(self::ALLOWED_IDENTICAL), array_keys($known))));
     }
 
     /** @return array<string, string> */
-    private static function load(string $domain, string $locale): array
+    private function load(string $domain, string $locale): array
     {
         $data = Yaml::parseFile(sprintf('%s/%s.%s.yaml', self::DIR, $domain, $locale));
 
-        return self::flatten(is_array($data) ? $data : []);
+        return $this->flatten(is_array($data) ? $data : []);
     }
 
     /**
@@ -104,7 +104,7 @@ final class TranslationCatalogueTest extends TestCase
      *
      * @return array<string, string>
      */
-    private static function flatten(array $tree, string $prefix = ''): array
+    private function flatten(array $tree, string $prefix = ''): array
     {
         $out = [];
 
@@ -112,7 +112,7 @@ final class TranslationCatalogueTest extends TestCase
             $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
 
             if (is_array($value)) {
-                $out += self::flatten($value, $path);
+                $out += $this->flatten($value, $path);
             } else {
                 $out[$path] = (string) $value;
             }
