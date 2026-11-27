@@ -67,7 +67,7 @@ Open `/admin/settings/sections/sms`, pick a provider, enter its credentials and 
 
 ## Requirements
 
-- PHP **8.2+** (`>=8.2 <8.6`; Symfony 8.x requires PHP 8.4+)
+- PHP **8.2+** (`>=8.2 <8.7`; Symfony 8.x requires PHP 8.4+)
 - Symfony **7.4**, **8.0** or **8.1** (FrameworkBundle, HttpClient, RateLimiter, Form, Validator, Security CSRF; SecurityBundle for the admin UI)
 - `nowo-tech/outbound-url-guard-bundle` **^1.3**, `nowo-tech/form-kit-bundle` **^2.17**, `nowo-tech/ui-kit-bundle` **^2.17.5**
 - `nowo-tech/instance-settings-bundle` **^1.3** (and therefore Doctrine ORM + `nowo-tech/doctrine-encrypt-bundle`) for the `sms` settings page and the send-test action — suggested since 2.0, install it for the default setup; without it the configuration comes from `nowo_sms_kit.default_provider` / `config_provider`
